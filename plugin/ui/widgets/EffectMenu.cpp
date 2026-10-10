@@ -128,9 +128,11 @@ void EffectMenu::buildPlugins(const juce::String& vendor) {
     const auto path = entry->path;
     const auto name = entry->name;
     row->onClick = [this, path, name] {
+      // Close the menu before handing off; the handler defers the actual work so
+      // nothing tears this menu (or the tiles) down while the button is mid-click.
+      dismiss();
       if (onChoose)
         onChoose(path, name);
-      dismiss();
     };
     content->addAndMakeVisible(row);
     y += kRowH;

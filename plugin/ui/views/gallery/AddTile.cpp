@@ -72,19 +72,23 @@ void AddTile::chooseInstalledEffect() {
                        effect["path"].toString()});
 
   effectMenu_ = std::make_unique<EffectMenu>(std::move(entries));
-  effectMenu_->onChoose = [safe = juce::Component::SafePointer<AddTile>(this)](
-                              const juce::String& path, const juce::String& name) {
-    if (safe == nullptr) return;
-    const auto id = safe->services().backend.addHostedEffectFromFile(juce::File(path),
-                                                                    safe->blockId());
-    if (id.empty()) {
-      safe->services().toast.show("Could not load this effect");
-      return;
-    }
-    safe->services().chain.refresh(true);
-    // Show the plugin's own GUI as soon as it has loaded.
-    if (!openHostedEffectEditor(safe->services(), id, name))
-      safe->services().toast.show("Effect loaded; reopen it from its tile");
+  // Defer the load until after this click has fully unwound: adding the block
+  // triggers a chain resync that can rebuild the gallery (destroying the tiles and
+  // this menu) — doing it inline is a use-after-free while the button is still in
+  // its mouseUp. Services outlives the tiles, so capture it (not `this`).
+  Services* svc = &services();
+  const std::string target = blockId();
+  effectMenu_->onChoose = [svc, target](const juce::String& path, const juce::String& name) {
+    juce::MessageManager::callAsync([svc, target, path, name] {
+      const auto id = svc->backend.addHostedEffectFromFile(juce::File(path), target);
+      if (id.empty()) {
+        svc->toast.show("Could not load this effect");
+        return;
+      }
+      svc->chain.refresh(true);
+      // The effect block's detail embeds the plugin's GUI (open the tile to see it).
+      juce::ignoreUnused(name);
+    });
   };
   effectMenu_->open(*this, Popover::Align::left, 8);
   effectMenu_->centreOn(*this);  // centre over the tile and keep inside the window

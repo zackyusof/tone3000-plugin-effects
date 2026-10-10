@@ -121,6 +121,15 @@ juce::String vendorFromBundleId(const juce::String& id) {
 
 }  // namespace
 
+juce::String TONE3000Processor::vendorForBundle(const juce::String& bundlePath) {
+#if JUCE_MAC
+  return vendorFromBundleId(bundleIdentifier(juce::File(bundlePath)));
+#else
+  juce::ignoreUnused(bundlePath);
+  return "Other";
+#endif
+}
+
 juce::var TONE3000Processor::listHostedEffectBundles() const {
   juce::Array<juce::var> result;
   auto addDir = [&result](const juce::String& dir, const juce::String& wildcard, const juce::String& format) {

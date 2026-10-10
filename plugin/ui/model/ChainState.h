@@ -110,6 +110,8 @@ struct ChainItem {
   std::string blockId;
   bool isInsert = true;
   bool isEffect = false;
+  std::string effectPath;    // hosted plugin bundle path
+  std::string effectVendor;  // vendor label (for the tile badge)
 
   // Tone-block fields (unused for inserts).
   ToneSummary tone;

@@ -91,6 +91,9 @@ public:
   // standard system dirs). Use this to build the add-effect menu on the message
   // thread; listHostedEffects() scans/loads plugins and must not run on it.
   juce::var listHostedEffectBundles() const;
+  // Vendor label for a plugin bundle (from its reverse-DNS id), e.g. FabFilter.
+  // Public so the chain state can tag effect blocks with their vendor.
+  static juce::String vendorForBundle(const juce::String& bundlePath);
   std::string addHostedEffect(const juce::String& descriptionXml,
                               const std::string& targetInsertId = {});
   std::string addHostedEffectFromFile(const juce::File& bundle,

@@ -13,6 +13,26 @@ namespace {
 constexpr int kImageFadeMs = 200;
 constexpr float kDimmedImage = 0.35f;
 const juce::Colour kStrip = juce::Colours::black.withAlpha(0.35f);
+
+// Vendor badge: a monogram on a colour derived from the vendor name (no offline
+// vendor logos exist, and the generic macOS bundle icon is ugly).
+juce::String vendorMonogram(const juce::String& vendor) {
+  if (vendor.isEmpty()) return "?";
+  const auto words = juce::StringArray::fromTokens(vendor, " -_", "");
+  juce::String monogram;
+  for (const auto& w : words) {
+    if (w.isNotEmpty()) {
+      monogram << w.substring(0, 1).toUpperCase();
+      if (monogram.length() >= 2) break;
+    }
+  }
+  return monogram.isNotEmpty() ? monogram : vendor.substring(0, 1).toUpperCase();
+}
+
+juce::Colour vendorColour(const juce::String& vendor) {
+  const auto h = static_cast<juce::uint32>(vendor.hashCode());
+  return juce::Colour::fromHSV((h % 360u) / 360.0f, 0.52f, 0.62f, 1.0f);
+}
 }  // namespace
 
 void ToneTile::Strip::paint(juce::Graphics& g) {
@@ -48,6 +68,7 @@ ToneTile::ToneTile(Services& services, const ChainItem& block, int size)
   ledSlot_.setSize(BlockLed::kSize, BlockLed::kSize);
   addMouseListener(&hover_, true);
   services.pointer.addListener(this);
+  hostedEffectGraphics().addChangeListener(this);  // repaint when a slot graphic arrives
 
   setBlock(block);
   setHovered(false);
@@ -55,9 +76,12 @@ ToneTile::ToneTile(Services& services, const ChainItem& block, int size)
 }
 
 ToneTile::~ToneTile() {
+  hostedEffectGraphics().removeChangeListener(this);
   services().pointer.removeListener(this);
   removeMouseListener(&hover_);
 }
+
+void ToneTile::changeListenerCallback(juce::ChangeBroadcaster*) { repaint(); }
 
 void ToneTile::setBlock(const ChainItem& block) {
   block_ = block;
@@ -152,10 +176,26 @@ void ToneTile::resized() {
 void ToneTile::paint(juce::Graphics& g) {
   paint::fill(g, getLocalBounds().toFloat(), gallery::kTileCorner, theme::kSurface);
   if (block_.isEffect && !dropArmed()) {
+    auto area = getLocalBounds().reduced(12);
+    auto nameArea = area.removeFromBottom(18);
+    const auto graphic = hostedEffectGraphic(blockId());
+    if (graphic.isValid()) {
+      // The plugin's own interface, captured when its window was open.
+      g.drawImage(graphic, area.toFloat(),
+                  juce::RectanglePlacement::centred | juce::RectanglePlacement::onlyReduceInSize);
+    } else {
+      const auto vendor = juce::String(block_.effectVendor);
+      const int d = juce::jmin(area.getWidth(), area.getHeight());
+      const auto badge = juce::Rectangle<int>(d, d).withCentre(area.getCentre()).toFloat();
+      g.setColour(vendorColour(vendor));
+      g.fillRoundedRectangle(badge, d * 0.22f);
+      g.setColour(juce::Colours::white);
+      g.setFont(juce::Font(juce::FontOptions(d * 0.42f, juce::Font::bold)));
+      g.drawFittedText(vendorMonogram(vendor), badge.toNearestInt(), juce::Justification::centred, 1);
+    }
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions(16.0f, juce::Font::bold)));
-    g.drawFittedText(block_.tone.title, getLocalBounds().reduced(15),
-                     juce::Justification::centred, 3);
+    g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
+    g.drawFittedText(block_.tone.title, nameArea, juce::Justification::centred, 1);
   }
   if (dropArmed()) {
     const float s = gallery::kFileDropGlyphSize;

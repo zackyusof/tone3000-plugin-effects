@@ -13,8 +13,10 @@ VST2 plug-ins, AUv3 extensions, and MIDI effects are outside this test build.
    `(AU)` / `(VST3)`. The list is built from a directory listing of
    `/Library/Audio/Plug-Ins/Components` and `/Library/Audio/Plug-Ins/VST3` — no
    scanning or instantiation, so it opens instantly.
-3. The effect's **own editor (its GUI) opens automatically** once it has loaded.
-   Close it and re-open it any time by clicking the effect tile. The tile can be
+3. **Click the effect tile** to open the plugin's own editor window. Once you have
+   opened it once, the slot shows a small **picture of the plugin's interface**
+   (captured from its window) so you can see what is loaded at a glance — until
+   then it shows a coloured **vendor badge** with the plugin name. The tile can be
    powered off, removed, dragged to another position, duplicated, and saved in
    presets.
 

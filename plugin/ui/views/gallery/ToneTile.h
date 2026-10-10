@@ -18,7 +18,7 @@
 
 namespace t3k::ui {
 
-class ToneTile : public GalleryTile, private Pointer::Listener {
+class ToneTile : public GalleryTile, private Pointer::Listener, private juce::ChangeListener {
 public:
   static constexpr int kChromeHeight = 32;
   static constexpr int kChromePad = 4;
@@ -66,6 +66,7 @@ private:
   };
 
   void pointerMoved(const juce::MouseEvent& e, bool leaving);
+  void changeListenerCallback(juce::ChangeBroadcaster*) override;  // effect graphic ready
   void setHovered(bool hovered);
   void pointerChanged() override { setHovered(hovered_); }
   void syncState();

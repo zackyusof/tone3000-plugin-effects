@@ -993,6 +993,8 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
     bool isInsert = false;
     bool isEffect = false;
     juce::String effectName;
+    juce::String effectPath;    // plugin bundle path
+    juce::String effectVendor;  // vendor label (for the tile badge)
     juce::var toneSummary;
     int toneId = 0;
     int activeModelId = 0;
@@ -1043,6 +1045,13 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
         }
         row.isEffect = block->type == ChainBlockType::EFFECT;
         row.effectName = block->effectName;
+        if (row.isEffect) {
+          juce::PluginDescription desc;
+          if (auto xml = juce::XmlDocument::parse(block->effectDescriptionXml);
+              xml != nullptr && desc.loadFromXml(*xml))
+            row.effectPath = desc.fileOrIdentifier;
+          row.effectVendor = vendorForBundle(row.effectPath);
+        }
         row.toneSummary = block->toneSummary;
         row.toneId = block->toneId;
         row.activeModelId = block->activeModelId;
@@ -1119,6 +1128,8 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
       // makeToneSummary) and shipped by reference.
       juce::var toneVar = row.toneSummary;
       if (row.isEffect) {
+        item->setProperty("effectPath", row.effectPath);
+        item->setProperty("effectVendor", row.effectVendor);
         juce::DynamicObject::Ptr effectTone = new juce::DynamicObject();
         effectTone->setProperty("id", 0);
         effectTone->setProperty("title", row.effectName);
