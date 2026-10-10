@@ -50,7 +50,9 @@ Everything else is the upstream plugin, unchanged.
 
 **Prebuilt macOS releases** (standalone + AU + VST3) are on the
 [**Releases**](https://github.com/zackyusof/tone3000-plugin-effects/releases) page — built by
-GitHub Actions on a macOS runner. Building from source is also easy:
+GitHub Actions on a macOS runner. A **daily scheduled job checks upstream TONE3000** and, when a
+new version ships, merges it into `main` and builds a fresh release automatically (conflicts stop
+the job and open an issue for a human to resolve). Building from source is also easy:
 
 Branches: `main` = upstream trunk + the hosted-effects feature.
 

@@ -1,29 +1,91 @@
-# Fork release workflow: build the plugin on macOS and publish a GitHub Release.
+# Build & Release (macOS) — auto-syncs upstream and publishes a macOS-only release.
 #
-# This fork adds hosted AU/VST3 effects, which is a macOS-only feature, so the
-# release is macOS-only. It does not touch the upstream multi-platform CI
-# (build.yml), which stays dispatch-only.
+# Triggers:
+#   - push a tag (v*): build + publish that tag.
+#   - schedule (daily): check github.com/tone-3000/tone3000-plugin; if it moved,
+#     merge it into main, tag the result, and publish a release.
+#   - manual (workflow_dispatch): same as schedule.
 #
-# Triggers: pushing a tag like v0.0.12-hosted.1, or a manual run.
-# Builds Standalone + AU + VST3 (arm64) and attaches zips to the release.
+# This fork's only change is hosted macOS AU/VST3 effects, so releases are macOS-only.
+# If an upstream merge conflicts (they touched a file we changed), the sync job fails
+# and opens an issue — a human resolves it, then re-runs or pushes a tag.
 
-name: Release (macOS)
+name: Build & Release (macOS)
 
 on:
   push:
     tags:
       - 'v*'
+  schedule:
+    - cron: '0 6 * * *'   # daily 06:00 UTC
   workflow_dispatch:
 
 permissions:
-  contents: write   # create the release
+  contents: write
+  issues: write
+
+concurrency:
+  group: macos-release
+  cancel-in-progress: false
 
 jobs:
-  macos:
+  sync:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      new: ${{ steps.check.outputs.new }}
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync upstream main
+        id: check
+        run: |
+          set -euo pipefail
+          git config user.name "tone3000-fork-sync"
+          git config user.email "actions@users.noreply.github.com"
+          git remote add upstream https://github.com/tone-3000/tone3000-plugin.git
+          git fetch --no-tags upstream main
+          UP=$(git rev-parse upstream/main)
+          LAST=$(tr -d '[:space:]' < .github/upstream-sha 2>/dev/null || true)
+          echo "upstream=$UP  last=$LAST"
+          if [ "$UP" = "$LAST" ]; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "Upstream unchanged — nothing to release."
+            exit 0
+          fi
+          VER=$(git show upstream/main:VERSION | tr -d '[:space:]')
+          TAG="v${VER}-hosted.${UP:0:7}"
+          if ! git merge --no-edit "$UP"; then
+            git merge --abort || true
+            echo "::error::Upstream merge conflicts with the hosted-effects changes — a human must resolve."
+            exit 1
+          fi
+          echo "$UP" > .github/upstream-sha
+          git add .github/upstream-sha
+          git commit -m "chore: sync upstream ${UP:0:7} (${VER})"
+          git push origin HEAD:main
+          echo "new=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "New release tag: $TAG"
+
+      - name: Open an issue if the sync failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "Upstream sync failed ($(date -u +%Y-%m-%d))" \
+            --body "The scheduled sync could not merge github.com/tone-3000/tone3000-plugin — most likely a conflict with this fork's hosted-effects changes. Resolve manually, then re-run the workflow or push a tag. Failed run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" || true
+
+  build:
+    needs: [sync]
+    if: always() && (github.event_name == 'push' || (needs.sync.result == 'success' && needs.sync.outputs.new == 'true'))
     runs-on: macos-14   # Apple Silicon (arm64)
     steps:
-      - name: Checkout (with submodules)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
@@ -77,11 +139,12 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
-      - name: Publish release (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Publish release
+        if: ${{ github.event_name == 'push' || needs.sync.outputs.new == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          name: "TONE3000 + Hosted AU/VST3 Effects ${{ github.ref_name }} — macOS only"
+          tag_name: ${{ github.event_name == 'push' && github.ref_name || needs.sync.outputs.tag }}
+          name: "TONE3000 + Hosted AU/VST3 Effects ${{ github.event_name == 'push' && github.ref_name || needs.sync.outputs.tag }} — macOS only"
           body: |
             **macOS only** (Apple Silicon, arm64).
 
