@@ -1,6 +1,11 @@
 #include "Processor.h"
 
 #include <algorithm>
+#include <map>
+
+#if JUCE_MAC
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 
 namespace {
 
@@ -43,6 +48,77 @@ std::shared_ptr<juce::AudioPluginInstance> instantiateEffect(
   return std::shared_ptr<juce::AudioPluginInstance>(std::move(instance));
 }
 
+#if JUCE_MAC
+// Reads the bundle's CFBundleIdentifier without loading/instantiating the plugin
+// (CFBundleCreate just parses Info.plist — cheap and safe on the message thread).
+juce::String bundleIdentifier(const juce::File& bundle) {
+  const auto path = bundle.getFullPathName();
+  CFURLRef url = CFURLCreateFromFileSystemRepresentation(
+      kCFAllocatorDefault, reinterpret_cast<const UInt8*>(path.toRawUTF8()),
+      static_cast<CFIndex>(path.getNumBytesAsUTF8()), true);
+  if (url == nullptr)
+    return {};
+  CFBundleRef cfBundle = CFBundleCreate(kCFAllocatorDefault, url);
+  CFRelease(url);
+  if (cfBundle == nullptr)
+    return {};
+  juce::String result;
+  if (CFStringRef id = CFBundleGetIdentifier(cfBundle)) {
+    const CFIndex len = CFStringGetLength(id);
+    const CFRange range = CFRangeMake(0, len);
+    CFIndex used = 0;
+    CFStringGetBytes(id, range, kCFStringEncodingUTF8, 0, false, nullptr, 0, &used);
+    juce::HeapBlock<UInt8> buffer(static_cast<size_t>(used) + 1);
+    CFStringGetBytes(id, range, kCFStringEncodingUTF8, 0, false,
+                     reinterpret_cast<UInt8*>(buffer.getData()), used, nullptr);
+    buffer[static_cast<size_t>(used)] = 0;
+    result = juce::String::fromUTF8(reinterpret_cast<const char*>(buffer.getData()));
+  }
+  CFRelease(cfBundle);
+  return result;
+}
+#endif
+
+// Vendor label from a reverse-DNS bundle id, e.g. "com.fabfilter.Pro-Q.4" -> "FabFilter".
+juce::String vendorFromBundleId(const juce::String& id) {
+  if (id.isEmpty())
+    return "Other";
+  auto parts = juce::StringArray::fromTokens(id, ".", "");
+  parts.trim();
+  if (parts.isEmpty())
+    return "Other";
+  static const juce::StringArray kTlds{
+      "com", "org", "net", "io", "co", "audio", "de", "se", "uk", "fr", "jp",
+      "eu", "us", "me", "it", "nl", "ca", "ch", "at", "au", "tv", "app", "dev", "info", "biz"};
+  int i = 0;
+  while (i < parts.size() && kTlds.contains(parts[i].toLowerCase()))
+    ++i;
+  juce::String vendor = (i < parts.size()) ? parts[i] : parts.getReference(0);
+  if (vendor.isEmpty())
+    return "Other";
+  // Normalise the grouping key (case + separators) so e.g. "plugin-alliance",
+  // "pluginalliance" and "Pluginalliance" collapse to one vendor.
+  const auto key = vendor.toLowerCase().retainCharacters("abcdefghijklmnopqrstuvwxyz0123456789");
+  // Display names for vendors whose reverse-DNS label is not their name.
+  static const std::map<juce::String, juce::String> kAliases{
+      {"uaudio", "Universal Audio"}, {"slatedigital", "Slate Digital"},
+      {"pluginalliance", "Plugin Alliance"}, {"izotope", "iZotope"},
+      {"fabfilter", "FabFilter"}, {"toneempire", "Tone Empire"},
+      {"wavesaudio", "Waves"}, {"soundtheory", "Soundtheory"},
+      {"bertomaudio", "Bertom Audio"}, {"ikmultimedia", "IK Multimedia"},
+      {"nativeinstruments", "Native Instruments"}, {"neuraldsp", "Neural DSP"},
+      {"blackroosteraudio", "Black Rooster Audio"}, {"unitedplugins", "United Plugins"},
+      {"inmusicbrands", "inMusic Brands"}, {"theusualsuspects", "The Usual Suspects"},
+      {"mcdsp", "McDSP"}, {"newfangledaudio", "Newfangled Audio"},
+      {"lindellplugins", "Lindell Plugins"}, {"kiiveaudio", "Kiive Audio"},
+      {"babyaudio", "BABY Audio"}, {"soundtoys", "Soundtoys"},
+      {"softube", "Softube"}, {"eventide", "Eventide"}, {"ssl", "SSL"}};
+  const auto alias = kAliases.find(key);
+  if (alias != kAliases.end())
+    return alias->second;
+  return vendor.substring(0, 1).toUpperCase() + vendor.substring(1);
+}
+
 }  // namespace
 
 juce::var TONE3000Processor::listHostedEffectBundles() const {
@@ -57,6 +133,11 @@ juce::var TONE3000Processor::listHostedEffectBundles() const {
       item->setProperty("name", entry.getFile().getFileNameWithoutExtension());
       item->setProperty("format", format);
       item->setProperty("path", entry.getFile().getFullPathName());
+#if JUCE_MAC
+      item->setProperty("vendor", vendorFromBundleId(bundleIdentifier(entry.getFile())));
+#else
+      item->setProperty("vendor", "Other");
+#endif
       result.add(juce::var(item));
     }
   };

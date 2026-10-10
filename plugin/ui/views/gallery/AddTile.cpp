@@ -63,32 +63,39 @@ void AddTile::chooseInstalledEffect() {
 
   struct Entry {
     juce::String name;
+    juce::String format;
     juce::String path;
   };
-  // Group by format, then by first letter. There can be 1000+ installed effects,
-  // so a flat list is unusable; the letter submenus keep it navigable.
-  std::map<juce::String, std::vector<Entry>> byFormat;
+  // Group by vendor (from each bundle's reverse-DNS id). With 1000+ installed
+  // effects this keeps the menu navigable without a blocking scan.
+  std::map<juce::String, std::vector<Entry>> byVendor;
   for (const auto& effect : *array) {
-    const auto key = effect["format"].toString() == "VST3" ? juce::String("VST3")
-                                                           : juce::String("Audio Units");
-    byFormat[key].push_back({effect["name"].toString(), effect["path"].toString()});
+    Entry entry{effect["name"].toString(),
+                effect["format"].toString() == "VST3" ? juce::String("VST3") : juce::String("AU"),
+                effect["path"].toString()};
+    byVendor[effect["vendor"].toString()].push_back(std::move(entry));
   }
 
   juce::PopupMenu menu;
-  for (auto& formatPair : byFormat) {
-    auto& items = formatPair.second;
+  for (auto& vendorPair : byVendor) {
+    auto& items = vendorPair.second;
     std::sort(items.begin(), items.end(), [](const Entry& a, const Entry& b) {
       return a.name.compareIgnoreCase(b.name) < 0;
     });
 
-    std::map<juce::String, juce::PopupMenu> byLetter;
-    for (const auto& entry : items) {
-      auto letter = entry.name.substring(0, 1).toUpperCase();
-      if (letter.isEmpty() || !letter.containsOnly("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
-        letter = "#";
-      byLetter[letter].addItem(
-          entry.name, true, false,
-          [safe = juce::Component::SafePointer<AddTile>(this), path = entry.path] {
+    juce::PopupMenu vendorMenu;
+    for (size_t i = 0; i < items.size(); ++i) {
+      juce::String label = items[i].name;
+      // Same name twice under one vendor (e.g. AU + VST3): disambiguate by format.
+      for (size_t j = 0; j < items.size(); ++j) {
+        if (j != i && items[j].name == items[i].name) {
+          label << " (" << items[i].format << ")";
+          break;
+        }
+      }
+      vendorMenu.addItem(
+          label, true, false,
+          [safe = juce::Component::SafePointer<AddTile>(this), path = items[i].path] {
             if (safe == nullptr) return;
             const auto id = safe->services().backend.addHostedEffectFromFile(juce::File(path),
                                                                             safe->blockId());
@@ -98,12 +105,8 @@ void AddTile::chooseInstalledEffect() {
               safe->services().chain.refresh(true);
           });
     }
-
-    juce::PopupMenu formatMenu;
-    for (auto& letterPair : byLetter)
-      formatMenu.addSubMenu(letterPair.first, letterPair.second);
-    menu.addSubMenu(formatPair.first + " (" + juce::String(static_cast<int>(items.size())) + ")",
-                    formatMenu);
+    menu.addSubMenu(vendorPair.first + " (" + juce::String(static_cast<int>(items.size())) + ")",
+                    vendorMenu);
   }
   menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this));
 }
