@@ -5,9 +5,10 @@ It hosts installed Audio Unit and VST3 audio effects with JUCE. Instruments,
 VST2 plug-ins, AUv3 extensions, and MIDI effects are outside this test build.
 
 1. Open the standalone app and right-click an empty `+` chain tile.
-2. Choose **Installed AU/VST3 Effects** to browse the installed effects, or
-   **Load AU/VST3 Effect** to select a `.component` or `.vst3` bundle directly.
-   The browser scans the standard system locations only:
+2. Choose **Add AU/VST3 Effect** — a menu grouped by manufacturer lists every
+   installed Audio Unit and VST3 effect. (Menu instead of a Finder dialog; the
+   layout follows Element's plugin menu: one submenu per manufacturer.)
+   The list is built from the standard system locations only:
    `/Library/Audio/Plug-Ins/Components` for Audio Units and
    `/Library/Audio/Plug-Ins/VST3` for VST3.
 3. Click the effect tile to open its own editor. The tile can be powered off,

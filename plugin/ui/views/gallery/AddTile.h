@@ -33,9 +33,7 @@ protected:
   std::vector<ContextMenu::Item> menuItems() override;
 
 private:
-  void chooseEffect();
   void chooseInstalledEffect();
-  std::unique_ptr<juce::FileChooser> effectChooser_;
   Routing routing_ = Routing::none;
   bool canPaste_ = false;
 };

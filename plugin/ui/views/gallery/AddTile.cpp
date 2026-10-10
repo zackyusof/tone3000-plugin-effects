@@ -5,9 +5,31 @@
 #include "core/Icons.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
+#include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 
 namespace t3k::ui {
+
+namespace {
+// Mirrors Element's plugin menu builder (kushview/element, ui/contextmenus.cpp):
+// walk a KnownPluginList tree and emit one submenu per folder, one item per plugin.
+// Element builds the tree with KnownPluginList::createTree(types, sortByManufacturer).
+void addPluginTreeItems(juce::PopupMenu& menu,
+                        const juce::KnownPluginList::PluginTree& tree,
+                        const std::function<void(const juce::PluginDescription&)>& onChosen) {
+  for (auto* sub : tree.subFolders) {
+    juce::PopupMenu subMenu;
+    addPluginTreeItems(subMenu, *sub, onChosen);
+    menu.addSubMenu(sub->folder, subMenu);
+  }
+  for (const auto& desc : tree.plugins) {
+    juce::String name = desc.name;
+    if (desc.pluginFormatName.isNotEmpty())
+      name << " (" << desc.pluginFormatName << ")";
+    menu.addItem(name, true, false, [onChosen, desc] { onChosen(desc); });
+  }
+}
+}  // namespace
 
 AddTile::Routing AddTile::routingFor(int index, int count) {
   if (count <= 1) return Routing::none;
@@ -36,10 +58,8 @@ void AddTile::open() {
 
 std::vector<ContextMenu::Item> AddTile::menuItems() {
   std::vector<ContextMenu::Item> items{
-      {"Installed AU/VST3 Effects", Icon::File, help::Key::loadFileTile,
+      {"Add AU/VST3 Effect", Icon::File, help::Key::loadFileTile,
        [this] { chooseInstalledEffect(); }},
-      {"Load AU/VST3 Effect", Icon::File, help::Key::loadFileTile,
-       [this] { chooseEffect(); }},
       {"Paste", Icon::ClipboardPaste, help::Key::pasteBlock,
        [this] { if (onPaste) onPaste(blockId()); }, /*disabled=*/!canPaste_},
   };
@@ -54,43 +74,40 @@ void AddTile::chooseInstalledEffect() {
     services().toast.show("No AU/VST3 effects found");
     return;
   }
-  auto descriptions = std::make_shared<std::vector<juce::String>>();
-  juce::PopupMenu menu;
+
+  // Build a KnownPluginList from the scanned descriptions, then render it as
+  // nested submenus grouped by manufacturer (Element's pattern) instead of a
+  // flat list or a Finder dialog.
+  juce::KnownPluginList known;
   for (const auto& effect : *array) {
-    descriptions->push_back(effect["description"].toString());
-    menu.addItem(static_cast<int>(descriptions->size()),
-                 effect["name"].toString() + " (" + effect["format"].toString() + ")");
+    if (auto xml = juce::XmlDocument::parse(effect["description"].toString())) {
+      juce::PluginDescription desc;
+      if (desc.loadFromXml(*xml) && !desc.isInstrument)
+        known.addType(desc);
+    }
   }
-  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
-                     [safe = juce::Component::SafePointer<AddTile>(this), descriptions](int choice) {
-                       if (safe == nullptr || choice <= 0 ||
-                           choice > static_cast<int>(descriptions->size()))
-                         return;
+  auto tree = juce::KnownPluginList::createTree(known.getTypes(),
+                                                juce::KnownPluginList::sortByManufacturer);
+  if (tree == nullptr || (tree->plugins.isEmpty() && tree->subFolders.isEmpty())) {
+    services().toast.show("No AU/VST3 effects found");
+    return;
+  }
+
+  juce::PopupMenu menu;
+  addPluginTreeItems(menu, *tree,
+                     [safe = juce::Component::SafePointer<AddTile>(this)](
+                         const juce::PluginDescription& desc) {
+                       if (safe == nullptr) return;
+                       auto xml = desc.createXml();
+                       if (xml == nullptr) return;
                        const auto id = safe->services().backend.addHostedEffect(
-                           (*descriptions)[static_cast<size_t>(choice - 1)], safe->blockId());
+                           xml->toString(), safe->blockId());
                        if (id.empty())
                          safe->services().toast.show("Could not load this effect");
                        else
                          safe->services().chain.refresh(true);
                      });
-}
-
-void AddTile::chooseEffect() {
-  effectChooser_ = std::make_unique<juce::FileChooser>(
-      "Choose an Audio Unit or VST3 effect",
-      juce::File("/Library/Audio/Plug-Ins"), "*.component;*.vst3");
-  effectChooser_->launchAsync(
-      juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-      [safe = juce::Component::SafePointer<AddTile>(this)](const juce::FileChooser& chooser) {
-        if (safe == nullptr) return;
-        const auto file = chooser.getResult();
-        if (file == juce::File()) return;
-        const auto id = safe->services().backend.addHostedEffectFromFile(file, safe->blockId());
-        if (id.empty())
-          safe->services().toast.show("Could not load this AU/VST3 effect");
-        else
-          safe->services().chain.refresh(true);
-      });
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this));
 }
 
 void AddTile::paint(juce::Graphics& g) {
