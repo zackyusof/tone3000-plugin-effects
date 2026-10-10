@@ -8,28 +8,10 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 
-namespace t3k::ui {
+#include <algorithm>
+#include <map>
 
-namespace {
-// Mirrors Element's plugin menu builder (kushview/element, ui/contextmenus.cpp):
-// walk a KnownPluginList tree and emit one submenu per folder, one item per plugin.
-// Element builds the tree with KnownPluginList::createTree(types, sortByManufacturer).
-void addPluginTreeItems(juce::PopupMenu& menu,
-                        const juce::KnownPluginList::PluginTree& tree,
-                        const std::function<void(const juce::PluginDescription&)>& onChosen) {
-  for (auto* sub : tree.subFolders) {
-    juce::PopupMenu subMenu;
-    addPluginTreeItems(subMenu, *sub, onChosen);
-    menu.addSubMenu(sub->folder, subMenu);
-  }
-  for (const auto& desc : tree.plugins) {
-    juce::String name = desc.name;
-    if (desc.pluginFormatName.isNotEmpty())
-      name << " (" << desc.pluginFormatName << ")";
-    menu.addItem(name, true, false, [onChosen, desc] { onChosen(desc); });
-  }
-}
-}  // namespace
+namespace t3k::ui {
 
 AddTile::Routing AddTile::routingFor(int index, int count) {
   if (count <= 1) return Routing::none;
@@ -68,45 +50,61 @@ std::vector<ContextMenu::Item> AddTile::menuItems() {
 }
 
 void AddTile::chooseInstalledEffect() {
-  const auto listed = services().backend.listHostedEffects();
+  // Build the menu from a plain directory listing of the two standard system
+  // folders. This does NOT instantiate/scan the plugins, so it returns instantly
+  // and never blocks the message thread. (JUCE's searchPathsForPlugins loads
+  // every plugin to identify it — that is what hung the UI before.)
+  const auto listed = services().backend.listHostedEffectBundles();
   const auto* array = listed.getArray();
   if (array == nullptr || array->isEmpty()) {
-    services().toast.show("No AU/VST3 effects found");
+    services().toast.show("No AU/VST3 effects found in /Library/Audio/Plug-Ins");
     return;
   }
 
-  // Build a KnownPluginList from the scanned descriptions, then render it as
-  // nested submenus grouped by manufacturer (Element's pattern) instead of a
-  // flat list or a Finder dialog.
-  juce::KnownPluginList known;
+  struct Entry {
+    juce::String name;
+    juce::String path;
+  };
+  // Group by format, then by first letter. There can be 1000+ installed effects,
+  // so a flat list is unusable; the letter submenus keep it navigable.
+  std::map<juce::String, std::vector<Entry>> byFormat;
   for (const auto& effect : *array) {
-    if (auto xml = juce::XmlDocument::parse(effect["description"].toString())) {
-      juce::PluginDescription desc;
-      if (desc.loadFromXml(*xml) && !desc.isInstrument)
-        known.addType(desc);
-    }
-  }
-  auto tree = juce::KnownPluginList::createTree(known.getTypes(),
-                                                juce::KnownPluginList::sortByManufacturer);
-  if (tree == nullptr || (tree->plugins.isEmpty() && tree->subFolders.isEmpty())) {
-    services().toast.show("No AU/VST3 effects found");
-    return;
+    const auto key = effect["format"].toString() == "VST3" ? juce::String("VST3")
+                                                           : juce::String("Audio Units");
+    byFormat[key].push_back({effect["name"].toString(), effect["path"].toString()});
   }
 
   juce::PopupMenu menu;
-  addPluginTreeItems(menu, *tree,
-                     [safe = juce::Component::SafePointer<AddTile>(this)](
-                         const juce::PluginDescription& desc) {
-                       if (safe == nullptr) return;
-                       auto xml = desc.createXml();
-                       if (xml == nullptr) return;
-                       const auto id = safe->services().backend.addHostedEffect(
-                           xml->toString(), safe->blockId());
-                       if (id.empty())
-                         safe->services().toast.show("Could not load this effect");
-                       else
-                         safe->services().chain.refresh(true);
-                     });
+  for (auto& formatPair : byFormat) {
+    auto& items = formatPair.second;
+    std::sort(items.begin(), items.end(), [](const Entry& a, const Entry& b) {
+      return a.name.compareIgnoreCase(b.name) < 0;
+    });
+
+    std::map<juce::String, juce::PopupMenu> byLetter;
+    for (const auto& entry : items) {
+      auto letter = entry.name.substring(0, 1).toUpperCase();
+      if (letter.isEmpty() || !letter.containsOnly("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+        letter = "#";
+      byLetter[letter].addItem(
+          entry.name, true, false,
+          [safe = juce::Component::SafePointer<AddTile>(this), path = entry.path] {
+            if (safe == nullptr) return;
+            const auto id = safe->services().backend.addHostedEffectFromFile(juce::File(path),
+                                                                            safe->blockId());
+            if (id.empty())
+              safe->services().toast.show("Could not load this effect");
+            else
+              safe->services().chain.refresh(true);
+          });
+    }
+
+    juce::PopupMenu formatMenu;
+    for (auto& letterPair : byLetter)
+      formatMenu.addSubMenu(letterPair.first, letterPair.second);
+    menu.addSubMenu(formatPair.first + " (" + juce::String(static_cast<int>(items.size())) + ")",
+                    formatMenu);
+  }
   menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this));
 }
 

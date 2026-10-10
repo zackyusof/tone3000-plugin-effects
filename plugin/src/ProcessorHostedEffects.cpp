@@ -45,6 +45,26 @@ std::shared_ptr<juce::AudioPluginInstance> instantiateEffect(
 
 }  // namespace
 
+juce::var TONE3000Processor::listHostedEffectBundles() const {
+  juce::Array<juce::var> result;
+  auto addDir = [&result](const juce::String& dir, const juce::String& wildcard, const juce::String& format) {
+    const juce::File folder(dir);
+    if (!folder.isDirectory())
+      return;
+    for (const auto& entry : juce::RangedDirectoryIterator(
+             folder, /*recursive*/ false, wildcard, juce::File::findDirectories)) {
+      auto* item = new juce::DynamicObject();
+      item->setProperty("name", entry.getFile().getFileNameWithoutExtension());
+      item->setProperty("format", format);
+      item->setProperty("path", entry.getFile().getFullPathName());
+      result.add(juce::var(item));
+    }
+  };
+  addDir("/Library/Audio/Plug-Ins/Components", "*.component", "AudioUnit");
+  addDir("/Library/Audio/Plug-Ins/VST3", "*.vst3", "VST3");
+  return result;
+}
+
 juce::var TONE3000Processor::listHostedEffects() const {
   juce::Array<juce::var> result;
   auto formats = makeFormatManager();

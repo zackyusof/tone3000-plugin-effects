@@ -29,6 +29,7 @@ public:
 
   std::string loadTone(const juce::String& toneJson, const std::string& targetInsertId) override;
   juce::var listHostedEffects() override;
+  juce::var listHostedEffectBundles() override;
   std::string addHostedEffect(const juce::String& descriptionXml,
                               const std::string& targetInsertId) override;
   std::string addHostedEffectFromFile(const juce::File& bundle,

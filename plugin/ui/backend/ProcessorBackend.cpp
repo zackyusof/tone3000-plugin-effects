@@ -50,6 +50,9 @@ std::string ProcessorBackend::loadTone(const juce::String& toneJson,
   return processor_.loadTone(toneJson, targetInsertId);
 }
 juce::var ProcessorBackend::listHostedEffects() { return processor_.listHostedEffects(); }
+juce::var ProcessorBackend::listHostedEffectBundles() {
+  return processor_.listHostedEffectBundles();
+}
 std::string ProcessorBackend::addHostedEffect(const juce::String& descriptionXml,
                                                const std::string& targetInsertId) {
   return processor_.addHostedEffect(descriptionXml, targetInsertId);

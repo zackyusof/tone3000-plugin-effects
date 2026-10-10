@@ -87,6 +87,10 @@ public:
   // Desktop plug-in hosting. Descriptions are JUCE PluginDescription XML;
   // installed AU and VST3 effects are discovered on demand by the editor.
   juce::var listHostedEffects() const;
+  // Fast, non-instantiating listing of installed effect bundles (just the two
+  // standard system dirs). Use this to build the add-effect menu on the message
+  // thread; listHostedEffects() scans/loads plugins and must not run on it.
+  juce::var listHostedEffectBundles() const;
   std::string addHostedEffect(const juce::String& descriptionXml,
                               const std::string& targetInsertId = {});
   std::string addHostedEffectFromFile(const juce::File& bundle,
