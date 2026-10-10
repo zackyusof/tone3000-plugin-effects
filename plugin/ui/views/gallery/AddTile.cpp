@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <map>
 
+#include "widgets/HostedEffectWindow.h"
+
 namespace t3k::ui {
 
 AddTile::Routing AddTile::routingFor(int index, int count) {
@@ -71,14 +73,18 @@ void AddTile::chooseInstalledEffect() {
 
   effectMenu_ = std::make_unique<EffectMenu>(std::move(entries));
   effectMenu_->onChoose = [safe = juce::Component::SafePointer<AddTile>(this)](
-                              const juce::String& path) {
+                              const juce::String& path, const juce::String& name) {
     if (safe == nullptr) return;
     const auto id = safe->services().backend.addHostedEffectFromFile(juce::File(path),
                                                                     safe->blockId());
-    if (id.empty())
+    if (id.empty()) {
       safe->services().toast.show("Could not load this effect");
-    else
-      safe->services().chain.refresh(true);
+      return;
+    }
+    safe->services().chain.refresh(true);
+    // Show the plugin's own GUI as soon as it has loaded.
+    if (!openHostedEffectEditor(safe->services(), id, name))
+      safe->services().toast.show("Effect loaded; reopen it from its tile");
   };
   effectMenu_->open(*this, Popover::Align::left, 8);
   effectMenu_->centreOn(*this);  // centre over the tile and keep inside the window

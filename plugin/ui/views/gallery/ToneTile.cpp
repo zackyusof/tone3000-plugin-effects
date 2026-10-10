@@ -5,6 +5,7 @@
 #include "core/Icons.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
+#include "widgets/HostedEffectWindow.h"
 
 namespace t3k::ui {
 
@@ -12,30 +13,6 @@ namespace {
 constexpr int kImageFadeMs = 200;
 constexpr float kDimmedImage = 0.35f;
 const juce::Colour kStrip = juce::Colours::black.withAlpha(0.35f);
-
-class HostedEffectWindow : public juce::DocumentWindow {
-public:
-  HostedEffectWindow(std::shared_ptr<juce::AudioPluginInstance> instance,
-                     const juce::String& name)
-      : juce::DocumentWindow(name, juce::Colours::darkgrey,
-                             juce::DocumentWindow::closeButton),
-        instance_(std::move(instance)) {
-    auto* editor = instance_->createEditorAndMakeActive();
-    if (editor == nullptr)
-      editor = new juce::GenericAudioProcessorEditor(*instance_);
-    setContentOwned(editor, true);
-    setUsingNativeTitleBar(true);
-    centreWithSize(juce::jmax(400, editor->getWidth()),
-                   juce::jmax(300, editor->getHeight()));
-    setVisible(true);
-    toFront(true);
-  }
-  ~HostedEffectWindow() override { clearContentComponent(); }
-  void closeButtonPressed() override { delete this; }
-
-private:
-  std::shared_ptr<juce::AudioPluginInstance> instance_;
-};
 }  // namespace
 
 void ToneTile::Strip::paint(juce::Graphics& g) {
@@ -117,10 +94,7 @@ void ToneTile::togglePower() {
 
 void ToneTile::open() {
   if (block_.isEffect) {
-    auto instance = services().backend.hostedEffectInstance(blockId());
-    if (instance != nullptr)
-      new HostedEffectWindow(std::move(instance), block_.tone.title);
-    else
+    if (!openHostedEffectEditor(services(), blockId(), block_.tone.title))
       services().toast.show("Effect is missing; reinstall it to restore this block");
     return;
   }

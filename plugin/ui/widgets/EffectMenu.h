@@ -27,8 +27,8 @@ public:
   explicit EffectMenu(std::vector<Entry> entries);
   ~EffectMenu() override;
 
-  // Chosen bundle path (called before the menu dismisses).
-  std::function<void(const juce::String&)> onChoose;
+  // Chosen bundle: path + display name (called before the menu dismisses).
+  std::function<void(const juce::String& path, const juce::String& name)> onChoose;
 
   // Centre the panel over `anchor` (and keep it inside the overlay). Call after open().
   void centreOn(juce::Component& anchor);

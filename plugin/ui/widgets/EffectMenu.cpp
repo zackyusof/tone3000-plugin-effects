@@ -126,9 +126,10 @@ void EffectMenu::buildPlugins(const juce::String& vendor) {
     row->setLabelColour(theme::kWhite);
     row->setBounds(0, y, w, kRowH);
     const auto path = entry->path;
-    row->onClick = [this, path] {
+    const auto name = entry->name;
+    row->onClick = [this, path, name] {
       if (onChoose)
-        onChoose(path);
+        onChoose(path, name);
       dismiss();
     };
     content->addAndMakeVisible(row);
