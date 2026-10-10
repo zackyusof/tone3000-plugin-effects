@@ -52,8 +52,14 @@ juce::var TONE3000Processor::listHostedEffects() const {
     auto* format = formats->getFormat(i);
     if (format == nullptr || (format->getName() != "AudioUnit" && format->getName() != "VST3"))
       continue;
-    auto identifiers = format->searchPathsForPlugins(format->getDefaultLocationsToSearch(),
-                                                       true, false);
+    // Hardcoded standard macOS locations, one per format, instead of every default
+    // location JUCE would otherwise walk. Predictable and fast.
+    juce::FileSearchPath searchPaths;
+    if (format->getName() == "AudioUnit")
+      searchPaths.add(juce::File("/Library/Audio/Plug-Ins/Components"));
+    else if (format->getName() == "VST3")
+      searchPaths.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
+    auto identifiers = format->searchPathsForPlugins(searchPaths, false, false);
     for (const auto& identifier : identifiers) {
       juce::OwnedArray<juce::PluginDescription> descriptions;
       format->findAllTypesForFile(descriptions, identifier);
