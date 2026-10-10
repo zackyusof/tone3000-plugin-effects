@@ -7,6 +7,10 @@
 #include "GalleryTile.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
+#include <memory>
+
+#include "widgets/EffectMenu.h"
+
 namespace t3k::ui {
 
 class AddTile : public GalleryTile {
@@ -34,6 +38,7 @@ protected:
 
 private:
   void chooseInstalledEffect();
+  std::unique_ptr<EffectMenu> effectMenu_;
   Routing routing_ = Routing::none;
   bool canPaste_ = false;
 };

@@ -50,10 +50,10 @@ std::vector<ContextMenu::Item> AddTile::menuItems() {
 }
 
 void AddTile::chooseInstalledEffect() {
-  // Build the menu from a plain directory listing of the two standard system
-  // folders. This does NOT instantiate/scan the plugins, so it returns instantly
-  // and never blocks the message thread. (JUCE's searchPathsForPlugins loads
-  // every plugin to identify it — that is what hung the UI before.)
+  // The bundles come from a plain directory listing (no scan/instantiation), so
+  // this is instant. EffectMenu is our own two-column popover (vendors -> that
+  // vendor's plugins) rather than a native PopupMenu, which lets us blur the
+  // vendor column while the plugin column is active.
   const auto listed = services().backend.listHostedEffectBundles();
   const auto* array = listed.getArray();
   if (array == nullptr || array->isEmpty()) {
@@ -61,54 +61,26 @@ void AddTile::chooseInstalledEffect() {
     return;
   }
 
-  struct Entry {
-    juce::String name;
-    juce::String format;
-    juce::String path;
+  std::vector<EffectMenu::Entry> entries;
+  entries.reserve(static_cast<size_t>(array->size()));
+  for (const auto& effect : *array)
+    entries.push_back({effect["vendor"].toString(), effect["name"].toString(),
+                       effect["format"].toString() == "VST3" ? juce::String("VST3")
+                                                             : juce::String("AU"),
+                       effect["path"].toString()});
+
+  effectMenu_ = std::make_unique<EffectMenu>(std::move(entries));
+  effectMenu_->onChoose = [safe = juce::Component::SafePointer<AddTile>(this)](
+                              const juce::String& path) {
+    if (safe == nullptr) return;
+    const auto id = safe->services().backend.addHostedEffectFromFile(juce::File(path),
+                                                                    safe->blockId());
+    if (id.empty())
+      safe->services().toast.show("Could not load this effect");
+    else
+      safe->services().chain.refresh(true);
   };
-  // Group by vendor (from each bundle's reverse-DNS id). With 1000+ installed
-  // effects this keeps the menu navigable without a blocking scan.
-  std::map<juce::String, std::vector<Entry>> byVendor;
-  for (const auto& effect : *array) {
-    Entry entry{effect["name"].toString(),
-                effect["format"].toString() == "VST3" ? juce::String("VST3") : juce::String("AU"),
-                effect["path"].toString()};
-    byVendor[effect["vendor"].toString()].push_back(std::move(entry));
-  }
-
-  juce::PopupMenu menu;
-  for (auto& vendorPair : byVendor) {
-    auto& items = vendorPair.second;
-    std::sort(items.begin(), items.end(), [](const Entry& a, const Entry& b) {
-      return a.name.compareIgnoreCase(b.name) < 0;
-    });
-
-    juce::PopupMenu vendorMenu;
-    for (size_t i = 0; i < items.size(); ++i) {
-      juce::String label = items[i].name;
-      // Same name twice under one vendor (e.g. AU + VST3): disambiguate by format.
-      for (size_t j = 0; j < items.size(); ++j) {
-        if (j != i && items[j].name == items[i].name) {
-          label << " (" << items[i].format << ")";
-          break;
-        }
-      }
-      vendorMenu.addItem(
-          label, true, false,
-          [safe = juce::Component::SafePointer<AddTile>(this), path = items[i].path] {
-            if (safe == nullptr) return;
-            const auto id = safe->services().backend.addHostedEffectFromFile(juce::File(path),
-                                                                            safe->blockId());
-            if (id.empty())
-              safe->services().toast.show("Could not load this effect");
-            else
-              safe->services().chain.refresh(true);
-          });
-    }
-    menu.addSubMenu(vendorPair.first + " (" + juce::String(static_cast<int>(items.size())) + ")",
-                    vendorMenu);
-  }
-  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this));
+  effectMenu_->open(*this, Popover::Align::left, 8);
 }
 
 void AddTile::paint(juce::Graphics& g) {

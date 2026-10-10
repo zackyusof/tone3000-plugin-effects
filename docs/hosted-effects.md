@@ -5,13 +5,14 @@ It hosts installed Audio Unit and VST3 audio effects with JUCE. Instruments,
 VST2 plug-ins, AUv3 extensions, and MIDI effects are outside this test build.
 
 1. Open the standalone app and right-click an empty `+` chain tile.
-2. Choose **Add AU/VST3 Effect** — a menu grouped by **vendor** (manufacturer),
-   each vendor listing its installed Audio Unit and VST3 effects (same name in a
-   vendor is disambiguated as `(AU)` / `(VST3)`). The vendor is read cheaply from
-   each bundle's reverse-DNS identifier (e.g. `com.fabfilter…` → *FabFilter*) —
-   no scanning or instantiation — so the menu opens instantly. It covers the
-   standard system locations only: `/Library/Audio/Plug-Ins/Components` and
-   `/Library/Audio/Plug-Ins/VST3`.
+2. Choose **Add AU/VST3 Effect** — an in-app browser, not a Finder dialog. The
+   left column lists **vendors**; picking one opens that vendor's effects in the
+   right column and **blurs the vendor column** behind it (backdrop blur). Pick an
+   effect to load it. Vendors come from each bundle's reverse-DNS identifier
+   (e.g. `com.fabfilter…` → *FabFilter*); the same name in a vendor is shown as
+   `(AU)` / `(VST3)`. The list is built from a directory listing of
+   `/Library/Audio/Plug-Ins/Components` and `/Library/Audio/Plug-Ins/VST3` — no
+   scanning or instantiation, so it opens instantly.
 3. Click the effect tile to open its own editor. The tile can be powered off,
    removed, dragged to another position, duplicated, and saved in presets.
 
