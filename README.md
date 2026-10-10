@@ -1,6 +1,8 @@
 # TONE3000 + Hosted AU/VST3 Effects
 
-> **This is a community fork of [tone3000-plugin](https://github.com/tone-3000/tone3000-plugin).**
+![TONE3000 signal chain — a NAM tone (Friedman) and hosted AU effects (Eventide MicroPitch & Shimmer) in the slots](docs/tone3000-slots.png)
+
+> **This is a community fork of [tone-3000/tone3000-plugin](https://github.com/tone-3000/tone3000-plugin).**
 > The base application — the whole TONE3000 plugin, its NAM/IR engine, UI and TONE3000
 > catalog integration — is made by the **TONE3000 team**. **All credit for the app goes to
 > them.** This fork only adds one feature on top (hosting AU/VST3 effects in the chain).
