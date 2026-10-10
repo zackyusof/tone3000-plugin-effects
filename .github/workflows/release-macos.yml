@@ -1,0 +1,106 @@
+# Fork release workflow: build the plugin on macOS and publish a GitHub Release.
+#
+# This fork adds hosted AU/VST3 effects, which is a macOS-only feature, so the
+# release is macOS-only. It does not touch the upstream multi-platform CI
+# (build.yml), which stays dispatch-only.
+#
+# Triggers: pushing a tag like v0.0.12-hosted.1, or a manual run.
+# Builds Standalone + AU + VST3 (arm64) and attaches zips to the release.
+
+name: Release (macOS)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create the release
+
+jobs:
+  macos:
+    runs-on: macos-14   # Apple Silicon (arm64)
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Read version
+        run: echo "T3K_VERSION=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_ENV"
+
+      - name: Install toolchain
+        run: brew install ninja cmake
+
+      # The publishable key is the app's OAuth client_id: publishable, not a
+      # secret (the official app ships it). A repo secret overrides it if set.
+      - name: Write build key (.env)
+        env:
+          T3K_PUBLISHABLE_KEY: ${{ secrets.T3K_PUBLISHABLE_KEY }}
+        run: |
+          KEY="${T3K_PUBLISHABLE_KEY:-t3k_pub__B8V_QGmV50ov2YWJzjqOxQE0q1-wURs}"
+          printf 'T3K_PUBLISHABLE_KEY=%s\n' "$KEY" > .env
+
+      - name: Configure (JUCE fetched by CPM)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+      - name: Apply JUCE popup-submenu fix (macOS)
+        run: sh script/patch_juce_popupmenu.sh
+
+      - name: Build Standalone + AU + VST3
+        run: cmake --build build -j3 --target TONE3000_Standalone TONE3000_AU TONE3000_VST3
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          REL="build/plugin/TONE3000_artefacts/Release"
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$REL/Standalone/TONE3000.app" \
+            "dist/TONE3000-${T3K_VERSION}-macOS-arm64-Standalone.zip"
+          cp -R "$REL/AU/TONE3000.component" dist/
+          cp -R "$REL/VST3/TONE3000.vst3" dist/
+          ( cd dist && zip -ry "TONE3000-${T3K_VERSION}-macOS-arm64-AU-VST3.zip" \
+              TONE3000.component TONE3000.vst3 >/dev/null )
+          ls -la dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TONE3000-${{ env.T3K_VERSION }}-macOS-arm64
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "TONE3000 + Hosted AU/VST3 Effects ${{ github.ref_name }} — macOS only"
+          body: |
+            **macOS only** (Apple Silicon, arm64).
+
+            Community fork of [tone3000-plugin](https://github.com/tone-3000/tone3000-plugin) —
+            **all credit for the base app goes to the TONE3000 team**
+            ([tone3000.com](https://www.tone3000.com)). This fork adds **hosted macOS AU/VST3
+            effects** in the chain (an Effect block + an in-plugin vendor browser).
+
+            **Downloads**
+            - `TONE3000-*-macOS-arm64-Standalone.zip` — the standalone app. Unzip and open
+              (right-click → Open the first time: it is ad-hoc signed, not notarized).
+            - `TONE3000-*-macOS-arm64-AU-VST3.zip` — the AU + VST3 plugin. Copy
+              `TONE3000.component` to `~/Library/Audio/Plug-Ins/Components/` and
+              `TONE3000.vst3` to `~/Library/Audio/Plug-Ins/VST3/`, then rescan in your DAW.
+
+            **How to load an effect:** right-click an empty `+` slot in the chain →
+            **Add AU/VST3 Effect** → pick a vendor → pick the effect → click the tile to open its
+            editor. See the README for the full instructions.
+
+            Not affiliated with or endorsed by TONE3000. MIT (see LICENSE).
+          files: dist/*.zip
+          fail_on_unmatched_files: true

@@ -10,6 +10,11 @@
 > Upstream license: **MIT, Copyright (c) 2026 TONE3000** (see [`LICENSE`](LICENSE)). This fork
 > keeps that license and the original copyright.
 
+> ### ⚠️ Platform: macOS only
+> The feature this fork adds — hosting **AU/VST3** effects — is **macOS-only**, so the releases
+> here are **macOS-only** (Apple Silicon, arm64). The upstream plugin supports more platforms;
+> this fork’s releases do not.
+
 ---
 
 ## What this fork adds
@@ -42,6 +47,10 @@ Everything else is the upstream plugin, unchanged.
   secret). Get one from tone3000.com, or copy the value the official app uses.
 
 ## Build it
+
+**Prebuilt macOS releases** (standalone + AU + VST3) are on the
+[**Releases**](https://github.com/zackyusof/tone3000-plugin-effects/releases) page — built by
+GitHub Actions on a macOS runner. Building from source is also easy:
 
 Branches: `main` = upstream trunk + the hosted-effects feature.
 
