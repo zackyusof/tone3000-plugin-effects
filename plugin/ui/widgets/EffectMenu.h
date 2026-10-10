@@ -27,8 +27,11 @@ public:
   explicit EffectMenu(std::vector<Entry> entries);
   ~EffectMenu() override;
 
-  // Chosen bunde path (called before the menu dismisses).
+  // Chosen bundle path (called before the menu dismisses).
   std::function<void(const juce::String&)> onChoose;
+
+  // Centre the panel over `anchor` (and keep it inside the overlay). Call after open().
+  void centreOn(juce::Component& anchor);
 
   void paint(juce::Graphics& g) override;
   void resized() override;
@@ -47,6 +50,7 @@ private:
   void buildVendors();
   void buildPlugins(const juce::String& vendor);
   void pickVendor(const juce::String& vendor);
+  void placeClamped(int x, int y);
 
   std::vector<Entry> entries_;
   juce::Component leftColumn_, rightColumn_;

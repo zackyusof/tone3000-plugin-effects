@@ -34,7 +34,29 @@ EffectMenu::EffectMenu(std::vector<Entry> entries) : entries_(std::move(entries)
   rightView_.setScrollBarThickness(kScrollW);
 
   buildVendors();
-  setSize(kPad * 2 + kLeftW, kPad * 2 + kHeight);
+  setSize(2 * (kBorder + kPad) + kLeftW, 2 * (kBorder + kPad) + kHeight);
+}
+
+void EffectMenu::centreOn(juce::Component& anchor) {
+  auto* overlay = getParentComponent();
+  if (overlay == nullptr)
+    return;
+  // Never taller than the overlay (the panel is taller than most plugin windows).
+  const int maxH = juce::jmax(160, overlay->getHeight() - 24);
+  if (getHeight() > maxH)
+    setSize(getWidth(), maxH);
+  const auto a = overlay->getLocalArea(&anchor, anchor.getLocalBounds().toFloat());
+  placeClamped(juce::roundToInt(a.getCentreX()) - getWidth() / 2,
+               juce::roundToInt(a.getBottom()) + 8);
+}
+
+void EffectMenu::placeClamped(int x, int y) {
+  auto* overlay = getParentComponent();
+  if (overlay == nullptr)
+    return;
+  const int maxX = juce::jmax(0, overlay->getWidth() - getWidth());
+  const int maxY = juce::jmax(0, overlay->getHeight() - getHeight());
+  setTopLeftPosition(juce::jlimit(0, maxX, x), juce::jlimit(0, maxY, y));
 }
 
 EffectMenu::~EffectMenu() = default;
@@ -119,7 +141,8 @@ void EffectMenu::buildPlugins(const juce::String& vendor) {
 void EffectMenu::pickVendor(const juce::String& vendor) {
   buildPlugins(vendor);
   rightShown_ = true;
-  setSize(kPad * 2 + kLeftW + kRightW, kPad * 2 + kHeight);  // triggers resized()
+  const int centreX = getX() + getWidth() / 2;  // keep the panel centred as it widens
+  setSize(2 * (kBorder + kPad) + kLeftW + kRightW, 2 * (kBorder + kPad) + kHeight);
   rightColumn_.setVisible(true);
 
   // Blur the (now in the background) vendor column. Snapshot before revealing the
@@ -131,8 +154,7 @@ void EffectMenu::pickVendor(const juce::String& vendor) {
   frost_.toFront(false);
   rightColumn_.toFront(false);
 
-  if (auto* overlay = getParentComponent())
-    reposition();
+  placeClamped(centreX - getWidth() / 2, getY());
 }
 
 }  // namespace t3k::ui

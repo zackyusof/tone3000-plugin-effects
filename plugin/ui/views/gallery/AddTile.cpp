@@ -81,6 +81,7 @@ void AddTile::chooseInstalledEffect() {
       safe->services().chain.refresh(true);
   };
   effectMenu_->open(*this, Popover::Align::left, 8);
+  effectMenu_->centreOn(*this);  // centre over the tile and keep inside the window
 }
 
 void AddTile::paint(juce::Graphics& g) {
