@@ -2,8 +2,10 @@
 #
 # Triggers:
 #   - push a tag (v*): build + publish that tag.
-#   - schedule (daily): check github.com/tone-3000/tone3000-plugin; if it moved,
-#     merge it into main, tag the result, and publish a release.
+#   - schedule (weekly, Mondays 06:00 UTC): check github.com/tone-3000/tone3000-plugin;
+#     if it moved, merge it into main, tag the result, and publish a release.
+#     Fully unattended: on a merge conflict it skips the release (the previous one
+#     stays as-is) and opens an issue; a human resolves it whenever convenient.
 #   - manual (workflow_dispatch): same as schedule.
 #
 # This fork's only change is hosted macOS AU/VST3 effects, so releases are macOS-only.
@@ -17,7 +19,7 @@ on:
     tags:
       - 'v*'
   schedule:
-    - cron: '0 6 * * *'   # daily 06:00 UTC
+    - cron: '0 6 * * 1'   # weekly — Mondays 06:00 UTC
   workflow_dispatch:
 
 permissions:
