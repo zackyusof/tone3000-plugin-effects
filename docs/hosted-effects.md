@@ -13,8 +13,10 @@ VST2 plug-ins, AUv3 extensions, and MIDI effects are outside this test build.
    `(AU)` / `(VST3)`. The list is built from a directory listing of
    `/Library/Audio/Plug-Ins/Components` and `/Library/Audio/Plug-Ins/VST3` — no
    scanning or instantiation, so it opens instantly.
-3. Click the effect tile to open its own editor. The tile can be powered off,
-   removed, dragged to another position, duplicated, and saved in presets.
+3. The effect's **own editor (its GUI) opens automatically** once it has loaded.
+   Close it and re-open it any time by clicking the effect tile. The tile can be
+   powered off, removed, dragged to another position, duplicated, and saved in
+   presets.
 
 The hosted plug-in must still be installed when a preset or DAW project is
 reopened. If it is absent, the block remains visible and passes audio through.

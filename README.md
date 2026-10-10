@@ -92,9 +92,10 @@ Artefacts land in `build/plugin/TONE3000_artefacts/Release/{Standalone,AU,VST3}/
 2. In the chain, **right-click an empty `+` slot**.
 3. Choose **Add AU/VST3 Effect**. A browser opens: the **left column lists vendors**; click one
    and its effects appear in the **right column** (the vendor column blurs behind).
-4. Click an effect to load it — it becomes an **Effect tile** in that slot.
-5. **Click the tile** to open the effect's own editor (falls back to a generic panel if it has no
-   custom UI). Right-click the tile for **Open Effect Editor** / **Remove**.
+4. Click an effect to load it — it becomes an **Effect tile** in that slot, and **its own editor
+   (the plugin's GUI) opens automatically** (falls back to a generic panel if it has no custom UI).
+5. Anytime after, **click the tile** to re-open the effect's editor. Right-click the tile for
+   **Open Effect Editor** / **Remove**.
 6. The tile behaves like any block: power on/off (bypass), drag to move, duplicate, and it is
    stored in presets.
 
