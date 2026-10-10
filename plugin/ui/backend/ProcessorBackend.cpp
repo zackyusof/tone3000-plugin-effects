@@ -49,6 +49,19 @@ std::string ProcessorBackend::loadTone(const juce::String& toneJson,
                                        const std::string& targetInsertId) {
   return processor_.loadTone(toneJson, targetInsertId);
 }
+juce::var ProcessorBackend::listHostedEffects() { return processor_.listHostedEffects(); }
+std::string ProcessorBackend::addHostedEffect(const juce::String& descriptionXml,
+                                               const std::string& targetInsertId) {
+  return processor_.addHostedEffect(descriptionXml, targetInsertId);
+}
+std::string ProcessorBackend::addHostedEffectFromFile(const juce::File& bundle,
+                                                       const std::string& targetInsertId) {
+  return processor_.addHostedEffectFromFile(bundle, targetInsertId);
+}
+std::shared_ptr<juce::AudioPluginInstance> ProcessorBackend::hostedEffectInstance(
+    const std::string& blockId) {
+  return processor_.hostedEffectInstance(blockId);
+}
 juce::var ProcessorBackend::loadLocalTonePath(const juce::File& source,
                                               const std::string& targetInsertId) {
   return processor_.loadLocalTonePath(source, targetInsertId);

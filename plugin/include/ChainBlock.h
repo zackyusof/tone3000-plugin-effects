@@ -13,12 +13,13 @@
 #include "NamEngine.h"
 
 // Chain block types
-enum class ChainBlockType { NAM, IR, INSERT };
+enum class ChainBlockType { NAM, IR, INSERT, EFFECT };
 
 inline juce::String chainBlockTypeToString(ChainBlockType type) {
   switch (type) {
     case ChainBlockType::NAM: return "nam";
     case ChainBlockType::INSERT: return "insert";
+    case ChainBlockType::EFFECT: return "effect";
     case ChainBlockType::IR: break;
   }
   return "ir";
@@ -27,6 +28,7 @@ inline juce::String chainBlockTypeToString(ChainBlockType type) {
 inline ChainBlockType chainBlockTypeFromString(const juce::String& s) {
   if (s == "nam") return ChainBlockType::NAM;
   if (s == "insert") return ChainBlockType::INSERT;
+  if (s == "effect") return ChainBlockType::EFFECT;
   return ChainBlockType::IR;
 }
 
@@ -133,6 +135,15 @@ struct ChainBlock {
   // State flags
   bool loaded;   // True when active model is loaded and ready
   bool enabled;  // True when block is enabled in processing chain
+
+  // Hosted AU/VST3 effect. The XML identifies the installed plug-in, while
+  // effectState contains its own opaque preset bytes. A missing plug-in is
+  // kept as a bypassed block so projects can recover when it is installed.
+  juce::String effectDescriptionXml;
+  juce::String effectName;
+  juce::MemoryBlock effectState;
+  std::shared_ptr<juce::AudioPluginInstance> effectInstance;
+  juce::AudioBuffer<float> effectScratch;
 
   // True when the last download/prepare of the active model failed (network
   // down, tone3000.com unreachable, bad model data). The UI swaps its loading

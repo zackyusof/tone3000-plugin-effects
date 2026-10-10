@@ -417,6 +417,22 @@ void TONE3000Processor::updateLatency() {
         PitchShift::windowFromIndex(static_cast<int>(std::lround(paramRefs.pitchWindow->load())));
     latency += PitchShift::latencySamples(window, hostSampleRate);
   }
+  // A hosted effect runs at the chain rate. Serial blocks add latency;
+  // parallel lanes report their longer path to the DAW.
+  int longestEffectPath = 0;
+  {
+    juce::ScopedLock lock(chainMutex);
+    for (const auto& laneBlocks : lanes) {
+      int laneLatency = 0;
+      for (const auto& block : laneBlocks)
+        if (block->type == ChainBlockType::EFFECT && block->enabled &&
+            block->effectInstance != nullptr)
+          laneLatency += block->effectInstance->getLatencySamples();
+      longestEffectPath = juce::jmax(longestEffectPath, laneLatency);
+    }
+  }
+  latency += static_cast<int>(std::ceil(longestEffectPath * hostSampleRate /
+                                        juce::jmax(1.0, chainSampleRate())));
   setLatencySamples(latency);  // no-op (no host notification) when unchanged
 }
 
@@ -578,7 +594,14 @@ void TONE3000Processor::prepareChain(std::vector<std::unique_ptr<ChainBlock>>& b
   const double chainRate = chainSampleRate();
 
   for (auto& block : blocks) {
-    if (block->type == ChainBlockType::NAM) {
+    if (block->type == ChainBlockType::EFFECT && block->effectInstance != nullptr) {
+      block->effectInstance->releaseResources();
+      block->effectInstance->setRateAndBufferSizeDetails(chainRate, domainBlockSize);
+      block->effectInstance->prepareToPlay(chainRate, domainBlockSize);
+      block->effectScratch.setSize(juce::jmax(block->effectInstance->getTotalNumInputChannels(),
+                                             block->effectInstance->getTotalNumOutputChannels()),
+                                   domainBlockSize, false, false, true);
+    } else if (block->type == ChainBlockType::NAM) {
       if (block->namEngine != nullptr) {
         block->namEngine->prepare(domainBlockSize);
         DBG("NAM engine prepared for block: " << block->id);
@@ -1371,6 +1394,20 @@ void TONE3000Processor::processChainOnBuffer(std::vector<std::unique_ptr<ChainBl
           buffer.copyFrom(1, 0, dryScratch, 1, 0, numSamples);
         }
         continue;
+      }
+    } else if (block->type == ChainBlockType::EFFECT && block->effectInstance != nullptr) {
+      // Prepared scratch keeps the hosted processor's channel layout and
+      // avoids allocation on the audio callback.
+      auto& scratch = block->effectScratch;
+      const int effectChannels = scratch.getNumChannels();
+      if (numSamples <= scratch.getNumSamples() && effectChannels > 0) {
+        for (int ch = 0; ch < effectChannels; ++ch)
+          scratch.copyFrom(ch, 0, buffer, juce::jmin(ch, numChannels - 1), 0, numSamples);
+        juce::AudioBuffer<float> view(scratch.getArrayOfWritePointers(), effectChannels, numSamples);
+        juce::MidiBuffer emptyMidi;
+        block->effectInstance->processBlock(view, emptyMidi);
+        for (int ch = 0; ch < numChannels; ++ch)
+          buffer.copyFrom(ch, 0, scratch, juce::jmin(ch, effectChannels - 1), 0, numSamples);
       }
     } else if (block->type == ChainBlockType::IR && block->convolverMono != nullptr) {
       // IR Processing.

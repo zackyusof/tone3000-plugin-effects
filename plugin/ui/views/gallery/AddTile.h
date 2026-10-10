@@ -5,6 +5,7 @@
 #pragma once
 
 #include "GalleryTile.h"
+#include <juce_gui_extra/juce_gui_extra.h>
 
 namespace t3k::ui {
 
@@ -32,6 +33,9 @@ protected:
   std::vector<ContextMenu::Item> menuItems() override;
 
 private:
+  void chooseEffect();
+  void chooseInstalledEffect();
+  std::unique_ptr<juce::FileChooser> effectChooser_;
   Routing routing_ = Routing::none;
   bool canPaste_ = false;
 };

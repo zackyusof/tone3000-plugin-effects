@@ -201,7 +201,16 @@ juce::ValueTree TONE3000Processor::serializeBlockSettings(const ChainBlock& bloc
   blockState.setProperty("outputGain", block.outputGainNormalized, nullptr);
   blockState.setProperty("mix", block.mixNormalized, nullptr);
 
-  if (block.type != ChainBlockType::INSERT) {
+  if (block.type == ChainBlockType::EFFECT) {
+    blockState.setProperty("effectDescription", block.effectDescriptionXml, nullptr);
+    blockState.setProperty("effectName", block.effectName, nullptr);
+    juce::MemoryBlock state;
+    if (block.effectInstance != nullptr)
+      block.effectInstance->getStateInformation(state);
+    else
+      state = block.effectState;
+    blockState.setProperty("effectState", juce::var(state), nullptr);
+  } else if (block.type != ChainBlockType::INSERT) {
     blockState.setProperty("toneId", block.toneId, nullptr);
     blockState.setProperty("toneJson", block.toneJson, nullptr);
     blockState.setProperty("activeModelId", block.activeModelId, nullptr);
@@ -217,6 +226,15 @@ void TONE3000Processor::applyBlockSettings(ChainBlock& block, const juce::ValueT
   block.inputGainNormalized = static_cast<float>(blockState.getProperty("inputGain", 0.5f));
   block.outputGainNormalized = static_cast<float>(blockState.getProperty("outputGain", 0.5f));
   block.mixNormalized = static_cast<float>(blockState.getProperty("mix", 1.0f));
+
+  if (block.type == ChainBlockType::EFFECT) {
+    block.effectDescriptionXml = blockState.getProperty("effectDescription").toString();
+    block.effectName = blockState.getProperty("effectName").toString();
+    block.effectState.reset();
+    const auto effectData = blockState.getProperty("effectState");
+    if (const auto* bytes = effectData.getBinaryData())
+      block.effectState = *bytes;
+  }
 
   // States from before per-block sizes restore as lite (0.0). An engine the
   // restore keeps loaded (see reconcileChainFromTree) retiers in place: the

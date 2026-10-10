@@ -25,6 +25,8 @@ install, load tones, and use it.
   undo/redo, and presets. Presets are plain files named after the preset
   (Plugin Settings → Presets opens the folder), so they can be backed up or
   copied between machines.
+- **Host AU/VST3 effects (fork test build).** Installed macOS audio effects
+  can be added to chain slots; see [test steps and limits](docs/hosted-effects.md).
 - **Cross-platform.** One plugin on macOS, Windows, Linux, and iOS
   (Standalone). The UI is JUCE/C++ (`plugin/ui/`), drawn natively on every
   platform: no browser engine, no web runtime, nothing to install beside the

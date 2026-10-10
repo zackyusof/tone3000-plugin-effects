@@ -84,6 +84,15 @@ public:
   // stale (undone away mid-flow), the active lane's first insert is used.
   std::string loadTone(const juce::String& toneJsonString,
                        const std::string& targetInsertId = {});
+  // Desktop plug-in hosting. Descriptions are JUCE PluginDescription XML;
+  // installed AU and VST3 effects are discovered on demand by the editor.
+  juce::var listHostedEffects() const;
+  std::string addHostedEffect(const juce::String& descriptionXml,
+                              const std::string& targetInsertId = {});
+  std::string addHostedEffectFromFile(const juce::File& bundle,
+                                      const std::string& targetInsertId = {});
+  std::shared_ptr<juce::AudioPluginInstance> hostedEffectInstance(
+      const std::string& blockId);
   // Load dropped local files (`files` = [{ name, data }], base64 bytes; one
   // entry for a single file, many for a folder) as one tone block, one model
   // per file. `targetInsertId` is either an insert slot (adds, consuming
@@ -731,6 +740,7 @@ private:
   // Prepare every engine in a chain for the current chain rate (see
   // chainSampleRate) and chain-domain block size. Holds no lock.
   void prepareChain(std::vector<std::unique_ptr<ChainBlock>>& blocks);
+  void restoreHostedEffect(ChainBlock& block);
 
   // (Re)design one block's rate-dependent linear stages (EQ biquads, spectrum
   // analyzer) for the current chain rate. prepareChain covers the blocks that

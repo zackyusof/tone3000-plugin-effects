@@ -125,7 +125,9 @@ ToneSummary parseTone(const juce::var& v) {
 ChainItem parseItem(const juce::var& v) {
   ChainItem item;
   item.blockId = str(v, "blockId").toStdString();
-  item.isInsert = str(v, "kind", "insert") != "tone";
+  const auto kind = str(v, "kind", "insert");
+  item.isInsert = kind == "insert";
+  item.isEffect = kind == "effect";
   if (item.isInsert)
     return item;
   item.tone = parseTone(v["tone"]);

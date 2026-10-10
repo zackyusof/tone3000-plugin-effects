@@ -148,6 +148,15 @@ void TONE3000Processor::reconcileChainFromTree(const juce::ValueTree& chainState
       target.push_back(std::move(block));
       continue;
     }
+    if (type == ChainBlockType::EFFECT) {
+      if (block->effectInstance == nullptr)
+        restoreHostedEffect(*block);
+      else if (!block->effectState.isEmpty())
+        block->effectInstance->setStateInformation(block->effectState.getData(),
+                                                   static_cast<int>(block->effectState.getSize()));
+      target.push_back(std::move(block));
+      continue;
+    }
 
     const int activeModelId = blockState.getProperty("activeModelId", 0);
     const bool modelChanged = block->activeModelId != activeModelId;

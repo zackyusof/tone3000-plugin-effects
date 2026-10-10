@@ -12,6 +12,30 @@ namespace {
 constexpr int kImageFadeMs = 200;
 constexpr float kDimmedImage = 0.35f;
 const juce::Colour kStrip = juce::Colours::black.withAlpha(0.35f);
+
+class HostedEffectWindow : public juce::DocumentWindow {
+public:
+  HostedEffectWindow(std::shared_ptr<juce::AudioPluginInstance> instance,
+                     const juce::String& name)
+      : juce::DocumentWindow(name, juce::Colours::darkgrey,
+                             juce::DocumentWindow::closeButton),
+        instance_(std::move(instance)) {
+    auto* editor = instance_->createEditorAndMakeActive();
+    if (editor == nullptr)
+      editor = new juce::GenericAudioProcessorEditor(*instance_);
+    setContentOwned(editor, true);
+    setUsingNativeTitleBar(true);
+    centreWithSize(juce::jmax(400, editor->getWidth()),
+                   juce::jmax(300, editor->getHeight()));
+    setVisible(true);
+    toFront(true);
+  }
+  ~HostedEffectWindow() override { clearContentComponent(); }
+  void closeButtonPressed() override { delete this; }
+
+private:
+  std::shared_ptr<juce::AudioPluginInstance> instance_;
+};
 }  // namespace
 
 void ToneTile::Strip::paint(juce::Graphics& g) {
@@ -64,6 +88,7 @@ void ToneTile::setBlock(const ChainItem& block) {
   setHelpText(help::toneTile(block.tone.title));
   setTitle(block.tone.title);
   image_.setTone(block.tone.image, block.tone.gear, block.tone.local, kGlyphSize);
+  swap_.setVisible(!block.isEffect);
   syncState();
 }
 
@@ -73,7 +98,7 @@ void ToneTile::setBlock(const ChainItem& block) {
 void ToneTile::syncState() {
   const bool busy = block_.modelLoading || (!block_.loaded && !block_.loadFailed);
   const bool armed = dropArmed();
-  image_.setVisible(!armed);
+  image_.setVisible(!armed && !block_.isEffect);
   imageFade_.animateTo(enabled_ && !busy && !block_.loadFailed ? 1.0f : kDimmedImage, kImageFadeMs);
   dots_.setVisible(!armed && busy && !block_.loadFailed);
   retry_.setVisible(!armed && block_.loadFailed);
@@ -91,10 +116,23 @@ void ToneTile::togglePower() {
 }
 
 void ToneTile::open() {
+  if (block_.isEffect) {
+    auto instance = services().backend.hostedEffectInstance(blockId());
+    if (instance != nullptr)
+      new HostedEffectWindow(std::move(instance), block_.tone.title);
+    else
+      services().toast.show("Effect is missing; reinstall it to restore this block");
+    return;
+  }
   if (onOpen) onOpen(blockId());
 }
 
 std::vector<ContextMenu::Item> ToneTile::menuItems() {
+  if (block_.isEffect)
+    return {{"Open Effect Editor", Icon::File, help::Key::loadFileTile,
+             [this] { open(); }},
+            {"Remove", Icon::Trash2, help::Key::removeBlock,
+             [this] { services().chain.removeBlock(blockId()); }}};
   std::vector<ContextMenu::Item> items{
       {"Copy", Icon::Copy, help::Key::copyBlock,
        [this] { this->services().chain.copyBlock(blockId()); }},
@@ -139,6 +177,12 @@ void ToneTile::resized() {
 
 void ToneTile::paint(juce::Graphics& g) {
   paint::fill(g, getLocalBounds().toFloat(), gallery::kTileCorner, theme::kSurface);
+  if (block_.isEffect && !dropArmed()) {
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::Font(juce::FontOptions(16.0f, juce::Font::bold)));
+    g.drawFittedText(block_.tone.title, getLocalBounds().reduced(15),
+                     juce::Justification::centred, 3);
+  }
   if (dropArmed()) {
     const float s = gallery::kFileDropGlyphSize;
     Icons::draw(g, Icon::Upload, getLocalBounds().toFloat().withSizeKeepingCentre(s, s), theme::kGray);

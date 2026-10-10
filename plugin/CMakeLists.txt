@@ -219,10 +219,15 @@ else()
     set(_t3k_plist_to_merge PLIST_TO_MERGE "<plist version=\"1.0\"><dict><key>LSMinimumSystemVersion</key><string>${CMAKE_OSX_DEPLOYMENT_TARGET}</string></dict></plist>")
 endif()
 
+if(APPLE AND NOT T3K_IOS)
+    set(_t3k_host_au PLUGINHOST_AU TRUE)
+endif()
+
 juce_add_plugin(${PROJECT_NAME}
     COMPANY_NAME TONE3000
     PLUGIN_NAME ${PLUGIN_NAME}
     IS_SYNTH FALSE
+    ${_t3k_host_au}
     # Pro Tools insert folders. Unset is None ("Other"). Harmonic is where
     # amp sims live; Effect is the generic folder. JUCE ORs the bits so the
     # plugin shows in both.
@@ -254,6 +259,10 @@ juce_add_plugin(${PROJECT_NAME}
     ${_t3k_ios_args}
     ICON_BIG "${_app_icon}"
 )
+
+# JUCE's CMake helper exposes PLUGINHOST_AU, while VST3 hosting is enabled
+# through the module option on the shared-code target.
+target_compile_definitions(${PROJECT_NAME} PUBLIC JUCE_PLUGINHOST_VST3=1)
 
 # What App Store Connect checks on upload. Nothing here changes how the app
 # behaves; without it the upload is rejected or the icon goes missing.
@@ -341,6 +350,7 @@ target_sources(${PROJECT_NAME}
         include/MidiMapper.h
         src/MidiMapper.cpp
         src/ProcessorChain.cpp
+        src/ProcessorHostedEffects.cpp
         src/ProcessorHistory.cpp
         src/ProcessorPresets.cpp
         src/ProcessorState.cpp
