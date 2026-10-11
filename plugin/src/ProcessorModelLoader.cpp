@@ -131,7 +131,7 @@ juce::File localModelsDir() {
 #if JUCE_MAC
   base = base.getChildFile("Application Support");
 #endif
-  return base.getChildFile("TONE3000").getChildFile("LocalModels");
+  return base.getChildFile(T3K_APP_DATA_DIR_NAME).getChildFile("LocalModels");
 }
 
 // FNV-1a over the file bytes: stable across sessions and platforms without

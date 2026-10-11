@@ -1,6 +1,12 @@
 #pragma once
 #include <juce_core/juce_core.h>
 #include <juce_data_structures/juce_data_structures.h>
+// Fork distribution identity (cmake/ForkIdentity.cmake): app-data folder name.
+// The CMake build always defines it; this fallback keeps any other build on
+// upstream.
+#ifndef T3K_APP_DATA_DIR_NAME
+#define T3K_APP_DATA_DIR_NAME "TONE3000"
+#endif
 #include <map>
 #include <set>
 #include <vector>

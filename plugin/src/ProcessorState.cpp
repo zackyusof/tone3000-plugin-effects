@@ -53,10 +53,10 @@ juce::PropertiesFile::Options userSettingsOptions() {
   // PresetManager and the logs).
   options.folderName =
       juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-          .getChildFile("TONE3000")
+          .getChildFile(T3K_APP_DATA_DIR_NAME)
           .getFullPathName();
 #else
-  options.folderName = "TONE3000";
+  options.folderName = T3K_APP_DATA_DIR_NAME;
 #endif
   return options;
 }

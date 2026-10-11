@@ -18,7 +18,7 @@ juce::File presetsRootDir() {
 #if JUCE_MAC
   base = base.getChildFile("Application Support");
 #endif
-  return base.getChildFile("TONE3000").getChildFile("Presets");
+  return base.getChildFile(T3K_APP_DATA_DIR_NAME).getChildFile("Presets");
 }
 
 juce::String stripPrefix(const juce::String& id, const char* prefix) {

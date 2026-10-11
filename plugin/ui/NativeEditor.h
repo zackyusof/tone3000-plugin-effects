@@ -21,6 +21,13 @@
 #include "views/PluginRoot.h"
 #include "widgets/KnobFace.h"
 
+// Fork distribution identity (cmake/ForkIdentity.cmake): the prefs lock name
+// follows the app-data folder so the fork never contends with an official
+// install's lock. Fallback keeps non-CMake builds on upstream.
+#ifndef T3K_APP_DATA_DIR_NAME
+#define T3K_APP_DATA_DIR_NAME "TONE3000"
+#endif
+
 namespace t3k::ui {
 
 class NativeEditor : public juce::AudioProcessorEditor, public Shell, private juce::Timer {
@@ -67,7 +74,7 @@ private:
   // (each DAW, the standalone) UiPrefs merges under the lock and saves each
   // write itself, so the file never autosaves.
   struct PrefsFile {
-    juce::InterProcessLock lock{"TONE3000.ui-preferences"};
+    juce::InterProcessLock lock{T3K_APP_DATA_DIR_NAME ".ui-preferences"};
     juce::PropertiesFile file{[this] {
       auto options = TONE3000Processor::uiPreferencesOptions();
       options.processLock = &lock;

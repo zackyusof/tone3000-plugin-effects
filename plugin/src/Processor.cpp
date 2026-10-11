@@ -549,7 +549,7 @@ TONE3000Processor::~TONE3000Processor() {
 // JUCE SETTINGS
 // #############
 const juce::String TONE3000Processor::getName() const {
-  return "TONE3000";
+  return T3K_DISPLAY_NAME;
 }
 
 bool TONE3000Processor::acceptsMidi() const {
@@ -2381,6 +2381,6 @@ juce::var TONE3000Processor::pollAutoOffset() {
 // UI's copy/reveal actions always target the same file.
 juce::File TONE3000Processor::getLogFile() {
   return juce::FileLogger::getSystemLogFileFolder()
-      .getChildFile("TONE3000")
+      .getChildFile(T3K_APP_DATA_DIR_NAME)
       .getChildFile("TONE3000.log");
 }

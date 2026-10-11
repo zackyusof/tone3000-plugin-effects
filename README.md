@@ -59,6 +59,26 @@ human to resolve later. Building from source is also easy:
 
 Branches: `main` = upstream trunk + the hosted-effects feature.
 
+### Distribution identity (read before installing)
+
+Audio plugin formats identify installed plugins by manufacturer + type codes (AU), UIDs derived
+from them (VST3/AAX), permanent URIs (LV2) and IDs (CLAP), plus bundle file names. Shipping
+binaries under the *same* values as the official releases would make the two overwrite and
+collide with each other in DAW scans — so this fork has two build tracks:
+
+| track | how | identities | use for |
+|---|---|---|---|
+| default | plain `cmake` / `build_tone3000.py` | upstream (`TONE3000`, AU `aumf/T3K0/TFTF`, …) | local-only builds, PRs back to upstream |
+| public release | `-DT3K_FORK_NAMESPACED=ON` / `build_tone3000.py --namespaced` | fork (`TONE3000 FX`, AU `aumf/T3KX/ZYUS`, own LV2/CLAP/data-dir, bundles `TONE3000-FX.*`) | anything you install next to — or give to people who have — official builds |
+
+All prebuilt releases on this page are the **namespaced** track, so they install and scan
+**alongside** official TONE3000 releases. If you still have the older same-named fork builds
+(`TONE3000.component` / `TONE3000.vst3` from earlier releases here), delete them so you don't
+get two entries for the same slot. Source defaults stay on the upstream values, which keeps
+pull requests back to `tone-3000/tone3000-plugin` compatible (its PR template pins the LV2
+URI, CLAP ID, AU hints and state format). Details: [`cmake/ForkIdentity.cmake`](cmake/ForkIdentity.cmake).
+The MIT license and the original `Copyright (c) 2026 TONE3000` notice are unchanged.
+
 **One command** (from this repo's `script/`; also shipped as an OpenCode skill):
 
 ```bash

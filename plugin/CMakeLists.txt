@@ -35,6 +35,22 @@ endif()
 
 project(TONE3000 VERSION ${T3K_VERSION})   # Set version of the plugin
 
+# Fork distribution identity. cmake/ForkIdentity.cmake exists ONLY in the fork
+# (zackyusof/tone3000-plugin-effects); upstream this include is a no-op and
+# the defaults below — the upstream values — apply, keeping local builds and
+# pull requests back to tone-3000/tone3000-plugin identical. Public releases
+# configure with -DT3K_FORK_NAMESPACED=ON (see that file) so installed
+# AU/VST3/LV2/CLAP coexist with official TONE3000 builds instead of
+# colliding with them.
+set(T3K_DISPLAY_NAME "TONE3000")
+set(T3K_PRODUCT_NAME "${PROJECT_NAME}")
+set(T3K_COMPANY_NAME "TONE3000")
+set(T3K_MANUFACTURER_CODE "TFTF")
+set(T3K_LV2_URI "https://www.tone3000.com/plugin")
+set(T3K_CLAP_ID "com.tone3000.plugin")
+set(T3K_APP_DATA_DIR_NAME "TONE3000")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ForkIdentity.cmake" OPTIONAL)
+
 option(HEADLESS "Disable GUI (headless/embedded build)" OFF)
 # The UI's testbed app (plugin/ui/testbed: scenario captures, pixel compare,
 # --selftest, --bench) as part of this build; registers its self-tests with
@@ -224,7 +240,7 @@ if(APPLE AND NOT T3K_IOS)
 endif()
 
 juce_add_plugin(${PROJECT_NAME}
-    COMPANY_NAME TONE3000
+    COMPANY_NAME ${T3K_COMPANY_NAME}
     PLUGIN_NAME ${PLUGIN_NAME}
     IS_SYNTH FALSE
     ${_t3k_host_au}
@@ -236,13 +252,13 @@ juce_add_plugin(${PROJECT_NAME}
     # hosts route their MIDI to us, standalone merges enabled MIDI inputs.
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
-    PLUGIN_MANUFACTURER_CODE TFTF
+    PLUGIN_MANUFACTURER_CODE ${T3K_MANUFACTURER_CODE}
     PLUGIN_CODE ${PLUGIN_CODE}
     FORMATS ${_plugin_formats}
     # The LV2 URI is the plugin's permanent identity in LV2 hosts (it keys
     # sessions and presets). Never change it once released.
-    LV2URI "https://www.tone3000.com/plugin"
-    PRODUCT_NAME ${PROJECT_NAME}
+    LV2URI "${T3K_LV2_URI}"
+    PRODUCT_NAME ${T3K_PRODUCT_NAME}
     VST3_AUTO_MANIFEST ${VST3_MANIFEST}
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "TONE3000 needs microphone access for audio input processing."
@@ -459,6 +475,13 @@ target_include_directories(${PROJECT_NAME}
 # macOS/Linux, which doesn't propagate the NAM target's definitions.
 target_compile_definitions(${PROJECT_NAME} PRIVATE NAM_ENABLE_A2_FAST)
 
+# Fork-visible display + app-data names. The values default to the upstream
+# strings above, so default builds are byte-identical to upstream; a namespaced
+# build (-DT3K_FORK_NAMESPACED=ON) swaps them (see cmake/ForkIdentity.cmake).
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    "T3K_DISPLAY_NAME=\"${T3K_DISPLAY_NAME}\""
+    "T3K_APP_DATA_DIR_NAME=\"${T3K_APP_DATA_DIR_NAME}\"")
+
 # JUCE modules used
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
@@ -603,7 +626,7 @@ if (NOT HEADLESS AND BUILD_CLAP)
         EXCLUDE_FROM_ALL YES
     )
     clap_juce_extensions_plugin(TARGET ${PROJECT_NAME}
-        CLAP_ID "com.tone3000.plugin"
+        CLAP_ID "${T3K_CLAP_ID}"
         CLAP_FEATURES audio-effect distortion)
 endif()
 

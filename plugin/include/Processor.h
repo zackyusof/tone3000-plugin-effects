@@ -1,5 +1,14 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+// Fork distribution identity (cmake/ForkIdentity.cmake): host-visible display
+// name + app-data folder name. The CMake build always defines both; these
+// fallbacks keep any other build (e.g. the UI testbed) exactly on upstream.
+#ifndef T3K_DISPLAY_NAME
+#define T3K_DISPLAY_NAME "TONE3000"
+#endif
+#ifndef T3K_APP_DATA_DIR_NAME
+#define T3K_APP_DATA_DIR_NAME "TONE3000"
+#endif
 #include <juce_dsp/juce_dsp.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>

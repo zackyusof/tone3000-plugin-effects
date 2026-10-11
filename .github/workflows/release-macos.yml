@@ -108,11 +108,16 @@ jobs:
           printf 'T3K_PUBLISHABLE_KEY=%s\n' "$KEY" > .env
 
       - name: Configure (JUCE fetched by CPM)
+        # T3K_FORK_NAMESPACED=ON ships the fork identities (TONE3000-FX,
+        # T3KX/ZYUS, own LV2/CLAP/data-dir) so these binaries coexist with
+        # official TONE3000 installs instead of colliding with them.
+        # See cmake/ForkIdentity.cmake.
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DT3K_FORK_NAMESPACED=ON
 
       - name: Apply JUCE popup-submenu fix (macOS)
         run: sh script/patch_juce_popupmenu.sh
@@ -126,18 +131,18 @@ jobs:
           REL="build/plugin/TONE3000_artefacts/Release"
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent \
-            "$REL/Standalone/TONE3000.app" \
-            "dist/TONE3000-${T3K_VERSION}-macOS-arm64-Standalone.zip"
-          cp -R "$REL/AU/TONE3000.component" dist/
-          cp -R "$REL/VST3/TONE3000.vst3" dist/
-          ( cd dist && zip -ry "TONE3000-${T3K_VERSION}-macOS-arm64-AU-VST3.zip" \
-              TONE3000.component TONE3000.vst3 >/dev/null )
+            "$REL/Standalone/TONE3000-FX.app" \
+            "dist/TONE3000-FX-${T3K_VERSION}-macOS-arm64-Standalone.zip"
+          cp -R "$REL/AU/TONE3000-FX.component" dist/
+          cp -R "$REL/VST3/TONE3000-FX.vst3" dist/
+          ( cd dist && zip -ry "TONE3000-FX-${T3K_VERSION}-macOS-arm64-AU-VST3.zip" \
+              TONE3000-FX.component TONE3000-FX.vst3 >/dev/null )
           ls -la dist
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TONE3000-${{ env.T3K_VERSION }}-macOS-arm64
+          name: TONE3000-FX-${{ env.T3K_VERSION }}-macOS-arm64
           path: dist/*.zip
           if-no-files-found: error
 
@@ -156,11 +161,17 @@ jobs:
             effects** in the chain (an Effect block + an in-plugin vendor browser).
 
             **Downloads**
-            - `TONE3000-*-macOS-arm64-Standalone.zip` — the standalone app. Unzip and open
+            - `TONE3000-FX-*-macOS-arm64-Standalone.zip` — the standalone app. Unzip and open
               (right-click → Open the first time: it is ad-hoc signed, not notarized).
-            - `TONE3000-*-macOS-arm64-AU-VST3.zip` — the AU + VST3 plugin. Copy
-              `TONE3000.component` to `~/Library/Audio/Plug-Ins/Components/` and
-              `TONE3000.vst3` to `~/Library/Audio/Plug-Ins/VST3/`, then rescan in your DAW.
+            - `TONE3000-FX-*-macOS-arm64-AU-VST3.zip` — the AU + VST3 plugin. Copy
+              `TONE3000-FX.component` to `~/Library/Audio/Plug-Ins/Components/` and
+              `TONE3000-FX.vst3` to `~/Library/Audio/Plug-Ins/VST3/`, then rescan in your DAW.
+
+            **Coexistence:** these binaries ship under fork identities (`TONE3000 FX`,
+            AU `T3KX`/`ZYUS`, own LV2/CLAP IDs and app-data folder), so they install
+            and scan alongside official TONE3000 releases. If you still have the
+            older same-named fork builds (`TONE3000.component` / `TONE3000.vst3` from
+            earlier releases), delete them to avoid two entries for the same slot.
 
             **How to load an effect:** right-click an empty `+` slot in the chain →
             **Add AU/VST3 Effect** → pick a vendor → pick the effect → click the tile to open its
