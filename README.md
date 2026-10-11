@@ -61,22 +61,27 @@ Branches: `main` = upstream trunk + the hosted-effects feature.
 
 ### Distribution identity (read before installing)
 
-Audio plugin formats identify installed plugins by manufacturer + type codes (AU), UIDs derived
-from them (VST3/AAX), permanent URIs (LV2) and IDs (CLAP), plus bundle file names. Shipping
-binaries under the *same* values as the official releases would make the two overwrite and
-collide with each other in DAW scans — so this fork has two build tracks:
+**Why this fork ships under its own name.** The first releases here reused the upstream
+plugin's exact names and internal IDs (`TONE3000`, AU `aumf/T3K0/TFTF`, same VST3/LV2/CLAP
+identities, same file names). That is the right choice for personal use and for pull requests
+back upstream -- identical names keep configs, build targets and git tracking aligned. But it
+is the wrong choice for *distributed* binaries: plugin formats tell installed plugins apart
+by exactly those IDs and file names, so a fork shipping the same ones overwrites -- or shows
+up as a duplicate of -- the official release in a DAW scan. Since this page distributes public
+binaries, **all prebuilt releases here are namespaced** and install/scan **alongside**
+official TONE3000 releases instead of colliding with them. This fork therefore has two tracks:
 
 | track | how | identities | use for |
 |---|---|---|---|
 | default | plain `cmake` / `build_tone3000.py` | upstream (`TONE3000`, AU `aumf/T3K0/TFTF`, …) | local-only builds, PRs back to upstream |
 | public release | `-DT3K_FORK_NAMESPACED=ON` / `build_tone3000.py --namespaced` | fork (`TONE3000 FX`, AU `aumf/T3KX/ZYUS`, own LV2/CLAP/data-dir, bundles `TONE3000-FX.*`) | anything you install next to — or give to people who have — official builds |
 
-All prebuilt releases on this page are the **namespaced** track, so they install and scan
-**alongside** official TONE3000 releases. If you still have the older same-named fork builds
-(`TONE3000.component` / `TONE3000.vst3` from earlier releases here), delete them so you don't
-get two entries for the same slot. Source defaults stay on the upstream values, which keeps
-pull requests back to `tone-3000/tone3000-plugin` compatible (its PR template pins the LV2
-URI, CLAP ID, AU hints and state format). Details: [`cmake/ForkIdentity.cmake`](cmake/ForkIdentity.cmake).
+If you installed one of the earlier same-named fork builds (`TONE3000.component` /
+`TONE3000.vst3` from a previous release here), delete those files so you don't get two
+entries for the same slot -- the namespaced builds are separate files and won't remove them
+for you. Source defaults stay on the upstream values, which keeps pull requests back to
+`tone-3000/tone3000-plugin` compatible (its PR template pins the LV2 URI, CLAP ID, AU hints
+and state format). Details: [`cmake/ForkIdentity.cmake`](cmake/ForkIdentity.cmake).
 The MIT license and the original `Copyright (c) 2026 TONE3000` notice are unchanged.
 
 **One command** (from this repo's `script/`; also shipped as an OpenCode skill):
