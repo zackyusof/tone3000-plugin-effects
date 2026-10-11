@@ -98,14 +98,21 @@ jobs:
       - name: Install toolchain
         run: brew install ninja cmake
 
-      # The publishable key is the app's OAuth client_id: publishable, not a
-      # secret (the official app ships it). A repo secret overrides it if set.
+      # The publishable key is this fork's OWN OAuth client_id, stored as the
+      # T3K_PUBLISHABLE_KEY repo secret (generate one at
+      # https://www.tone3000.com/settings). There is deliberately NO fallback
+      # to the official app's key: shipping public binaries under TONE3000's
+      # own client_id would attribute all fork traffic to their app and share
+      # its quota. Fail here instead, with instructions.
       - name: Write build key (.env)
         env:
           T3K_PUBLISHABLE_KEY: ${{ secrets.T3K_PUBLISHABLE_KEY }}
         run: |
-          KEY="${T3K_PUBLISHABLE_KEY:-t3k_pub__B8V_QGmV50ov2YWJzjqOxQE0q1-wURs}"
-          printf 'T3K_PUBLISHABLE_KEY=%s\n' "$KEY" > .env
+          if [ -z "${T3K_PUBLISHABLE_KEY}" ]; then
+            echo "::error::T3K_PUBLISHABLE_KEY repo secret is not set. Generate a publishable key at https://www.tone3000.com/settings, add it as a repository secret named T3K_PUBLISHABLE_KEY, then re-run."
+            exit 1
+          fi
+          printf 'T3K_PUBLISHABLE_KEY=%s\n' "${T3K_PUBLISHABLE_KEY}" > .env
 
       - name: Configure (JUCE fetched by CPM)
         # T3K_FORK_NAMESPACED=ON ships the fork identities (TONE3000-FX,
@@ -157,7 +164,9 @@ jobs:
 
             Community fork of [tone3000-plugin](https://github.com/tone-3000/tone3000-plugin) —
             **all credit for the base app goes to the TONE3000 team**
-            ([tone3000.com](https://www.tone3000.com)). This fork adds **hosted macOS AU/VST3
+            ([tone3000.com](https://www.tone3000.com)). Powered by TONE3000: the tone catalog,
+            accounts and downloads are TONE3000 services used under their API Terms.
+            This fork adds **hosted macOS AU/VST3
             effects** in the chain (an Effect block + an in-plugin vendor browser).
 
             **Downloads**

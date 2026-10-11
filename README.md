@@ -46,7 +46,9 @@ Everything else is the upstream plugin, unchanged.
 - **CMake ≥ 3.22** and **Ninja** (a build script below provisions them if missing).
 - A **TONE3000 publishable key** at configure time. The plugin reads `T3K_PUBLISHABLE_KEY`
   from a repo-root `.env` (gitignored). It is the app's OAuth **client_id** (publishable, not a
-  secret). Get one from tone3000.com, or copy the value the official app uses.
+  secret). Generate your OWN key at tone3000.com/settings (required for any build you
+  distribute — never ship someone else's client_id). For a strictly personal build you may
+  instead reuse the official app's key from your own install.
 
 ## Build it
 
