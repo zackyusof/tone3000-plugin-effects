@@ -1,4 +1,4 @@
-# TONE3000 + Hosted AU/VST3 Effects
+# TONE3000-FX
 
 ![TONE3000 signal chain — a NAM tone (Friedman) and hosted AU effects (Eventide MicroPitch & Shimmer) in the slots](docs/tone3000-slots.png)
 
