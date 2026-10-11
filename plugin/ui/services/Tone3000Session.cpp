@@ -3,12 +3,15 @@
 #include <juce_events/juce_events.h>
 
 #include "T3kConfig.h"
+#include "services/ForkKeyStore.h"  // fork-only: bring-your-own API key
 
 namespace t3k::ui {
 
 namespace {
 constexpr const char* kNoKeyMessage =
-    "TONE3000 publishable key not configured. Set T3K_PUBLISHABLE_KEY at build time.";
+    "TONE3000 publishable key not configured. Paste your own free key (tone3000.com/settings) into "
+    "Plugin Settings > TONE3000 API key, then reopen this window. (Builders: or bake one in with "
+    "T3K_PUBLISHABLE_KEY at build time.)";
 constexpr const char* kLoopbackFailed = "Could not start the local sign-in listener. Try again.";
 // The launcher itself refused (AuthFlow::browserProblem; the screen adds
 // what to do instead). A browser that starts and then dies reports nothing
@@ -34,11 +37,20 @@ Tone3000Session::Config Tone3000Session::Config::fromBuild() {
   return {config::kApiOrigin, config::kPublishableKey, config::kArchitecture};
 }
 
+// Fork-only: a personal key saved in settings (Plugin Settings > TONE3000 API key)
+// wins over the baked build key, so keyless public builds still sign in under
+// the user's own TONE3000 client_id.
+static Tone3000Session::Config withForkKey(UiPrefs& prefs, Tone3000Session::Config config) {
+  if (const auto custom = fork::customPublishableKey(prefs); custom.isNotEmpty())
+    config.publishableKey = custom;
+  return config;
+}
+
 Tone3000Session::Tone3000Session(Backend& backend, UiPrefs& prefs, HttpTransport& http, Config config)
     : backend_(backend),
       prefs_(prefs),
       http_(http),
-      config_(std::move(config)),
+      config_(withForkKey(prefs, std::move(config))),
       client_(http, prefs, config_.apiOrigin, config_.publishableKey) {
   // Every new or refreshed token set reaches native as it happens.
   client_.onTokensUpdated = [this](const Tokens& t) { pushToken(t.access); };

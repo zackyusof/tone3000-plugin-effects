@@ -46,9 +46,10 @@ Everything else is the upstream plugin, unchanged.
 - **CMake ≥ 3.22** and **Ninja** (a build script below provisions them if missing).
 - A **TONE3000 publishable key** at configure time. The plugin reads `T3K_PUBLISHABLE_KEY`
   from a repo-root `.env` (gitignored). It is the app's OAuth **client_id** (publishable, not a
-  secret). Generate your OWN key at tone3000.com/settings (required for any build you
-  distribute — never ship someone else's client_id). For a strictly personal build you may
-  instead reuse the official app's key from your own install.
+  secret). For a build only you will ever run, generate your own at tone3000.com/settings or
+  reuse the official app's key from your own install. Public builds ship WITHOUT a baked key:
+  every user pastes their own free key (tone3000.com/settings) into Plugin Settings, so no
+  shared quota and no one else's credential in the binary. Leave `.env` empty for that.
 
 ## Build it
 
@@ -135,16 +136,20 @@ standard system folders below.
 ### In a DAW (AU / VST3)
 
 1. **Install the plugin builds** into the standard macOS locations:
-   - `~/Library/Audio/Plug-Ins/Components/TONE3000.component` (AU)
-   - `~/Library/Audio/Plug-Ins/VST3/TONE3000.vst3` (VST3)
+   - `~/Library/Audio/Plug-Ins/Components/TONE3000-FX.component` (AU)
+   - `~/Library/Audio/Plug-Ins/VST3/TONE3000-FX.vst3` (VST3)
 
    The build script copies them there for you; otherwise copy the bundles from
    `…/Release/AU/` and `…/Release/VST3/`.
-2. In your DAW, **rescan plugins** and insert **TONE3000** on a track (AU in Audio-Unit hosts
+2. In your DAW, **rescan plugins** and 2. **First run: your own API key.** Open Plugin Settings, paste your free publishable key
+   from [tone3000.com/settings](https://www.tone3000.com/settings) (sign in first) into
+   **TONE3000 API key**, reopen the window, then sign in. Prebuilt releases ship keyless;
+   catalog traffic always runs under your key.
+3. In your DAW, **rescan plugins** and insert **TONE3000 FX** on a track (AU in Audio-Unit hosts
    such as Logic/Reaper; VST3 in any VST3 host).
 3. In the TONE3000 window, **right-click an empty `+` slot → Add AU/VST3 Effect** and pick the
    effect exactly as in the Standalone.
-4. Save the project — the hosted effect and its state are stored with it.
+5. Save the project — the hosted effect and its state are stored with it.
 
 ### Where hosted effects are found
 

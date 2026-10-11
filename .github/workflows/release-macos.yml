@@ -98,21 +98,13 @@ jobs:
       - name: Install toolchain
         run: brew install ninja cmake
 
-      # The publishable key is this fork's OWN OAuth client_id, stored as the
-      # T3K_PUBLISHABLE_KEY repo secret (generate one at
-      # https://www.tone3000.com/settings). There is deliberately NO fallback
-      # to the official app's key: shipping public binaries under TONE3000's
-      # own client_id would attribute all fork traffic to their app and share
-      # its quota. Fail here instead, with instructions.
-      - name: Write build key (.env)
-        env:
-          T3K_PUBLISHABLE_KEY: ${{ secrets.T3K_PUBLISHABLE_KEY }}
+      # Public builds ship WITHOUT a baked key: every user pastes their own
+      # free publishable key (tone3000.com/settings) into Plugin Settings, and
+      # all catalog traffic runs under that key. No secret, no fallback — never
+      # bake anyone's client_id (not even the maintainer's) into binaries.
+      - name: Write empty build key (.env)
         run: |
-          if [ -z "${T3K_PUBLISHABLE_KEY}" ]; then
-            echo "::error::T3K_PUBLISHABLE_KEY repo secret is not set. Generate a publishable key at https://www.tone3000.com/settings, add it as a repository secret named T3K_PUBLISHABLE_KEY, then re-run."
-            exit 1
-          fi
-          printf 'T3K_PUBLISHABLE_KEY=%s\n' "${T3K_PUBLISHABLE_KEY}" > .env
+          printf 'T3K_PUBLISHABLE_KEY=\n' > .env
 
       - name: Configure (JUCE fetched by CPM)
         # T3K_FORK_NAMESPACED=ON ships the fork identities (TONE3000-FX,
@@ -181,6 +173,11 @@ jobs:
             and scan alongside official TONE3000 releases. If you still have the
             older same-named fork builds (`TONE3000.component` / `TONE3000.vst3` from
             earlier releases), delete them to avoid two entries for the same slot.
+
+            **First run — your own API key:** these builds ship without a key. Open Plugin
+            Settings → **TONE3000 API key**, paste your free publishable key from
+            [tone3000.com/settings](https://www.tone3000.com/settings) (sign in first),
+            reopen the window, then sign in. Catalog traffic runs under your key.
 
             **How to load an effect:** right-click an empty `+` slot in the chain →
             **Add AU/VST3 Effect** → pick a vendor → pick the effect → click the tile to open its

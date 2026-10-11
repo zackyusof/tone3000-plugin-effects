@@ -31,6 +31,8 @@ public:
 
 private:
   class DbuField;
+  // Fork-only: bring-your-own TONE3000 API key (public builds ship keyless).
+  class ApiKeyField;
 
   void prefChanged(const juce::String& key) override;
   void chainChanged(const ChainState& state) override;
@@ -69,6 +71,11 @@ private:
 
   FieldRow midi_;
   MidiMapSection midiSection_;
+
+  FieldRow apiKey_;
+  std::unique_ptr<ApiKeyField> apiKeyField_;
+  Paragraph apiKeyHelp_, apiKeyStatus_;
+  void syncApiKey();
 
   FieldRow presets_;
   FormButton openPresets_;

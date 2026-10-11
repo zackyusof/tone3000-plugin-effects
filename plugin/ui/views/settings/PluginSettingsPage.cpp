@@ -1,5 +1,6 @@
 #include "PluginSettingsPage.h"
 
+#include "services/ForkKeyStore.h"  // fork-only: bring-your-own API key
 #include "InlineChrome.h"
 #include "core/Fonts.h"
 #include "core/Paint.h"
@@ -81,6 +82,49 @@ private:
   TextField field_;
 };
 
+// ApiKeyField (fork-only)
+// The user's own TONE3000 publishable key: a plain text field with the same
+// draft-while-focused commit semantics as DbuField (Enter or blur commits to
+// prefs; ForkKeyStore drops stale tokens when the value changes).
+class PluginSettingsPage::ApiKeyField : public FormItem {
+public:
+  ApiKeyField(UiPrefs& prefs, std::function<void()> onCommit)
+      : prefs_(prefs), onCommit_(std::move(onCommit)) {
+    field_.setBackground(juce::Colours::transparentBlack);
+    field_.setBorder(form::kFieldBorder);
+    field_.setCornerRadius(form::kFieldRadius);
+    field_.setFontSize(form::kFieldPx);
+    field_.setPadding(form::kFieldPadY, form::kFieldPadX, form::kFieldPadX);
+    field_.setPlaceholder("t3k_pub_...");
+    field_.setName("TONE3000 API key");
+    field_.onEnter = [this] { commit(); };
+    field_.onBlur = [this] { commit(); };
+    addAndMakeVisible(field_);
+    sync();
+  }
+
+  // Reflect prefs unless the user is mid-edit.
+  void sync() {
+    if (field_.hasFocus()) return;
+    field_.setText(fork::customPublishableKey(prefs_));
+  }
+
+  float heightFor(float) const override { return static_cast<float>(form::fieldHeight()); }
+
+  void resized() override { field_.setBounds(getLocalBounds()); }
+
+private:
+  void commit() {
+    fork::setCustomPublishableKey(prefs_, field_.text());
+    if (onCommit_) onCommit_();
+    sync();
+  }
+
+  UiPrefs& prefs_;
+  std::function<void()> onCommit_;
+  TextField field_;
+};
+
 // PluginSettingsPage
 PluginSettingsPage::PluginSettingsPage(Services& services)
     : FormStack(form::kSectionGap),
@@ -131,6 +175,15 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
       midi_("MIDI Mapping",
             "Control the plugin from pedals and knobs. Mappings are saved with the plugin and work in your DAW too."),
       midiSection_(services),
+      apiKey_("TONE3000 API key",
+              "Your own free TONE3000 key. Public builds ship without one, so paste yours here."),
+      apiKeyField_(std::make_unique<ApiKeyField>(services_.prefs, [this] { syncApiKey(); })),
+      apiKeyHelp_(copy({TextRun::plain("Sign-in and catalog downloads run under this key. Get a free one at "),
+                        TextRun::link("tone3000.com/settings", "https://www.tone3000.com/settings",
+                                      theme::kLinkBlue),
+                        TextRun::plain(" (sign in first), paste it above, then reopen this window. Leave empty "
+                                       "to use the key baked into this build, if it has one.")})),
+      apiKeyStatus_(juce::String(), form::kSmallPx, theme::kSubtle),
       presets_("Presets",
                "Your saved presets are files in a folder you can back up, share, or copy to another computer."),
       openPresets_("Open presets folder", FormButton::text(form::kBodyPx, false, theme::kLinkBlue)),
@@ -201,6 +254,15 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   midi_.content().add(midiSection_);
   add(midi_);
 
+  // Fork-only: personal API key. Placed after MIDI so account-adjacent
+  // settings sit together.
+  apiKey_.content().setGap(form::kControlGap);
+  apiKey_.content().add(*apiKeyField_);
+  apiKey_.content().add(apiKeyHelp_);
+  apiKey_.content().add(apiKeyStatus_);
+  apiKeyHelp_.onLink = [](const juce::String& href) { juce::URL(href).launchInDefaultBrowser(); };
+  add(apiKey_);
+
   // Presets: a link to the folder the files live in. Hidden where there is
   // no file browser to open (iOS).
   if (services_.backend.canOpenPresetsFolder()) {
@@ -240,6 +302,7 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   services_.updates.addListener(this);
   syncPrefs();
   syncParams();
+  syncApiKey();
   syncFooter();
   chainChanged(services_.chain.state());
 }
@@ -254,6 +317,14 @@ void PluginSettingsPage::prefChanged(const juce::String& key) {
   if (key == UiPrefs::kShowHints || key == UiPrefs::kShowGateControl || key == UiPrefs::kShowPitchControl ||
       key == UiPrefs::kShowBlockSizeControl || key == UiPrefs::kShowBlockNormalizeControl)
     syncPrefs();
+  if (key == fork::kCustomPublishableKey) syncApiKey();
+}
+
+void PluginSettingsPage::syncApiKey() {
+  apiKeyField_->sync();
+  apiKeyStatus_.setText(fork::customPublishableKey(services_.prefs).isNotEmpty()
+                            ? "Personal key saved. Reopen this window to sign in with it."
+                            : "No personal key. The build's key is used (if it has one).");
 }
 
 void PluginSettingsPage::syncPrefs() {
