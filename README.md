@@ -19,6 +19,12 @@
 
 ---
 
+## Version 1 and Version 2 design
+
+**Version 1 (TONE3000-FX)** follows the aesthetics of the original TONE3000 plug-in, retaining its visual style while adding hosted AU/VST3 effects to the signal chain.
+
+**[Version 2 (zynamfx)](https://github.com/zackyusof/zynamfx)** has its own design language, with a distinct interface, graphics, and product identity. It builds on the TONE3000 foundation while taking its own visual direction.
+
 ## What this fork adds
 
 The upstream chain hosts **NAM (Neural Amp Modeler) captures** and **IRs**. This fork adds a
